@@ -238,11 +238,31 @@
       </div>
     </section>
 
-    <!-- TAB 3: HƯỚNG DẪN KẾT NỐI GOOGLE SHEET & VERCEL -->
+    <!-- TAB 3: HƯỚNG DẪN KẾT NỐI GOOGLE SHEET & CẤU HÌNH APPS SCRIPT -->
     <section id="tab-guide" class="tab-pane">
+      
+      <!-- CẤU HÌNH & TRỰC TIẾP KIỂM TRA KẾT NỐI APPS SCRIPT -->
+      <div class="card glassmorphic" style="margin-bottom: 24px; border-color: var(--primary);">
+        <div class="card-header">
+          <h2><i class="fa-solid fa-link text-gradient"></i> Cấu hình Web App URL từ Apps Script (Code.gs)</h2>
+          <p class="text-muted">Sau khi tạo Web App trên Google Apps Script, dán URL vào đây để kết nối tức thì với Google Sheet <code>1bv1twT1xlmRYWbEI3uzlEV-te5-pbtm5qIw7cqJa6HA</code>!</p>
+        </div>
+
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <div class="input-wrapper" style="flex: 1; min-width: 280px;">
+            <i class="fa-solid fa-key input-icon"></i>
+            <input type="url" id="scriptUrlInput" placeholder="https://script.google.com/macros/s/AKfycb.../exec">
+          </div>
+          <button class="btn btn-primary" id="saveScriptUrlBtn">
+            <i class="fa-solid fa-floppy-disk"></i> Lưu & Kiểm tra Kết nối
+          </button>
+        </div>
+        <div id="connectionStatus" style="margin-top: 12px; font-size: 0.9rem;"></div>
+      </div>
+
       <div class="card glassmorphic guide-card">
         <div class="card-header">
-          <h2><i class="fa-solid fa-plug text-gradient"></i> Hướng dẫn Kết nối Google Sheet 2 Chiều & Vercel</h2>
+          <h2><i class="fa-solid fa-plug text-gradient"></i> Hướng dẫn Kết nối Google Sheet 2 Chiều</h2>
           <p class="text-muted">Liên kết trực tiếp với Google Sheet ID: <code>1bv1twT1xlmRYWbEI3uzlEV-te5-pbtm5qIw7cqJa6HA</code></p>
         </div>
 

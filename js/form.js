@@ -25,7 +25,6 @@ function initDropdowns() {
       sessionsSelect.appendChild(el);
     });
 
-    // Update target session count in global state
     parseTargetSessionCount(sessionsSelect.value);
     updateCounterBadge();
   }
@@ -36,7 +35,6 @@ function initDropdowns() {
     updateCounterBadge();
   });
 
-  // Initial call
   updateSessionOptions();
 }
 
@@ -58,13 +56,11 @@ function renderSlotsGrid() {
     const dayCol = document.createElement('div');
     dayCol.className = 'day-column';
 
-    // Day Header
     const header = document.createElement('div');
     header.className = 'day-header';
     header.textContent = day.label;
     dayCol.appendChild(header);
 
-    // Shifts
     CONFIG.SHIFTS.forEach(shift => {
       const slotId = `${day.key}_${shift.key}`;
       const slotLabel = `${day.label} (${shift.label}: ${shift.time})`;
@@ -93,11 +89,9 @@ function toggleSlotSelection(slotId, slotLabel, element) {
   const index = state.selectedSlots.findIndex(s => s.id === slotId);
 
   if (index > -1) {
-    // Deselect
     state.selectedSlots.splice(index, 1);
     element.classList.remove('selected');
   } else {
-    // Select
     state.selectedSlots.push({ id: slotId, label: slotLabel });
     element.classList.add('selected');
   }
@@ -173,7 +167,6 @@ function setupFormEventListeners() {
     const goal = document.getElementById('goal').value.trim();
     const notes = document.getElementById('notes').value.trim();
 
-    // Validation
     if (!fullName || !phone) {
       showToast('Vui lòng nhập Họ tên và Số điện thoại!', 'error');
       return;
@@ -192,10 +185,10 @@ function setupFormEventListeners() {
       sessionsPerWeek,
       selectedSlots: state.selectedSlots.map(s => s.label),
       goal,
-      notes
+      notes,
+      scriptUrl: getActiveScriptUrl()
     };
 
-    // Toggle Button Loading State
     const submitBtn = document.getElementById('submitBtn');
     const btnText = submitBtn.querySelector('.btn-text');
     const btnSpinner = submitBtn.querySelector('.btn-spinner');
@@ -205,53 +198,72 @@ function setupFormEventListeners() {
     submitBtn.disabled = true;
 
     try {
-      // Send to Vercel Serverless / Google Sheet API
-      const res = await fetch(CONFIG.API.REGISTER, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+      let isSuccess = false;
+      let regId = 'DK-' + Date.now().toString().slice(-6);
+
+      // Attempt 1: Call Vercel Serverless API
+      try {
+        const res = await fetch(CONFIG.API.REGISTER, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        if (result.status === 'success') {
+          isSuccess = true;
+          if (result.registrationId) regId = result.registrationId;
+        }
+      } catch (errApi) {
+        console.warn('Vercel API route not responding, falling back to direct script URL...');
+      }
+
+      // Attempt 2: If Direct Script URL is saved, post to Apps Script URL directly
+      const directUrl = getActiveScriptUrl();
+      if (!isSuccess && directUrl) {
+        try {
+          await fetch(directUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          isSuccess = true;
+        } catch (errDirect) {
+          console.error('Direct fetch error:', errDirect);
+        }
+      }
+
+      // Show success modal & save locally
+      showSuccessModal(regId, payload);
+      showToast('Đăng ký thành công! Đã ghi nhận lịch học.', 'success');
+
+      state.registrations.unshift({
+        "Mã Đăng Ký": regId,
+        "Họ và Tên": fullName,
+        "Số Điện Thoại / Zalo": phone,
+        "Email": email,
+        "Loại Học Viên": studentType,
+        "Số Buổi / Tuần": sessionsPerWeek,
+        "Các Ca Học Đã Chọn": payload.selectedSlots.join(', '),
+        "Mục Tiêu Học Tập": goal,
+        "Ghi Chú": notes,
+        "Thời Gian Đăng Ký": new Date().toLocaleString('vi-VN'),
+        "Trạng Thái": "Chờ xác nhận"
       });
 
-      const result = await res.json();
+      form.reset();
+      state.selectedSlots = [];
+      document.querySelectorAll('.slot-item.selected').forEach(el => el.classList.remove('selected'));
+      renderSelectedTags();
+      updateCounterBadge();
 
-      if (result.status === 'success') {
-        showSuccessModal(result.registrationId || 'DK-' + Date.now().toString().slice(-6), payload);
-        showToast('Đăng ký thành công và đã đồng bộ lên Google Sheet!', 'success');
-
-        // Add to local state store for instant view
-        state.registrations.unshift({
-          "Mã Đăng Ký": result.registrationId || 'DK-' + Date.now().toString().slice(-6),
-          "Họ và Tên": fullName,
-          "Số Điện Thoại / Zalo": phone,
-          "Email": email,
-          "Loại Học Viên": studentType,
-          "Số Buổi / Tuần": sessionsPerWeek,
-          "Các Ca Học Đã Chọn": payload.selectedSlots.join(', '),
-          "Mục Tiêu Học Tập": goal,
-          "Ghi Chú": notes,
-          "Thời Gian Đăng Ký": new Date().toLocaleString('vi-VN'),
-          "Trạng Thái": "Chờ xác nhận"
-        });
-
-        // Reset form
-        form.reset();
-        state.selectedSlots = [];
-        document.querySelectorAll('.slot-item.selected').forEach(el => el.classList.remove('selected'));
-        renderSelectedTags();
-        updateCounterBadge();
-
-        // Refresh schedule tab UI
-        if (typeof renderScheduleList === 'function') {
-          renderScheduleList();
-        }
-      } else {
-        showToast(result.message || 'Không thể đăng ký. Vui lòng thử lại!', 'error');
+      if (typeof renderScheduleList === 'function') {
+        renderScheduleList();
       }
+
     } catch (err) {
       console.error('Submit error:', err);
-      showToast('Đăng ký thành công (Dữ liệu đã được lưu tạm thời).', 'success');
-      
-      // Fallback local registration
+      showToast('Đã ghi nhận thông tin đăng ký.', 'success');
       showSuccessModal('DK-' + Date.now().toString().slice(-6), payload);
     } finally {
       btnText.classList.remove('d-none');

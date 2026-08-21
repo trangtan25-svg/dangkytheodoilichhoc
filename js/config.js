@@ -6,7 +6,10 @@
 const CONFIG = {
   GOOGLE_SHEET_ID: '1bv1twT1xlmRYWbEI3uzlEV-te5-pbtm5qIw7cqJa6HA',
   
-  // API Endpoints (Handled by Vercel Serverless API or direct Google Apps Script fallback)
+  // Bạn có thể dán trực tiếp URL Google Apps Script Web App của bạn vào đây nếu muốn!
+  DEFAULT_SCRIPT_URL: localStorage.getItem('GOOGLE_SCRIPT_URL') || '',
+
+  // API Endpoints
   API: {
     REGISTER: '/api/register',
     SCHEDULE: '/api/schedule'
@@ -37,9 +40,14 @@ const CONFIG = {
   ]
 };
 
-// Global Store for local fallback & state
+// Global Store
 const state = {
   selectedSlots: [],
-  targetSessionCount: 4, // Default for Cấp tốc 4 buổi/tuần
+  targetSessionCount: 4,
   registrations: []
 };
+
+// Helper function to get active Apps Script URL
+function getActiveScriptUrl() {
+  return localStorage.getItem('GOOGLE_SCRIPT_URL') || CONFIG.DEFAULT_SCRIPT_URL || '';
+}

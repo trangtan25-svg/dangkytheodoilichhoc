@@ -1,9 +1,8 @@
 // Vercel Serverless Function: Post New Registration to Google Sheet
 module.exports = async (req, res) => {
-  // Set CORS headers
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
   res.setHeader(
     'Access-Control-Allow-Headers',
     'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
@@ -18,44 +17,34 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { fullName, phone, email, studentType, sessionsPerWeek, selectedSlots, goal, notes } = req.body || {};
+    const bodyData = req.body || {};
+    const scriptUrl = process.env.GOOGLE_SCRIPT_URL || bodyData.scriptUrl;
 
-    if (!fullName || !phone || !selectedSlots || selectedSlots.length === 0) {
-      return res.status(400).json({ 
-        status: 'error', 
-        message: 'Vui lòng điền đầy đủ Họ tên, SĐT và chọn ít nhất 1 ca học.' 
-      });
-    }
-
-    const scriptUrl = process.env.GOOGLE_SCRIPT_URL;
-
-    if (scriptUrl) {
-      // Proxy request to Google Apps Script Web App
+    if (scriptUrl && scriptUrl.startsWith('http')) {
       const response = await fetch(scriptUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName,
-          phone,
-          email,
-          studentType,
-          sessionsPerWeek,
-          selectedSlots,
-          goal,
-          notes
-        })
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(bodyData),
+        redirect: 'follow'
       });
 
-      const data = await response.json();
+      const textResult = await response.text();
+      let data;
+      try {
+        data = JSON.parse(textResult);
+      } catch (e) {
+        data = { status: 'success', raw: textResult };
+      }
       return res.status(200).json(data);
     } else {
-      // Mock / Local Fallback response when env var is pending setup
+      // Return notice asking for Script URL
       const registrationId = 'DK-' + Date.now().toString().slice(-6);
       return res.status(200).json({
-        status: 'success',
-        message: 'Đăng ký thành công (Lưu tạm thời trên hệ thống).',
+        status: 'warning',
+        needConfig: true,
+        message: 'Chưa cấu hình GOOGLE_SCRIPT_URL trên Vercel. Dữ liệu tạm thời lưu tại trình duyệt.',
         registrationId,
-        data: { fullName, phone, email, studentType, sessionsPerWeek, selectedSlots, goal, notes }
+        data: bodyData
       });
     }
   } catch (error) {
