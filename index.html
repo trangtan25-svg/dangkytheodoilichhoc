@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đăng ký & Theo dõi Lịch học | Đồng bộ Google Sheet</title>
+  <meta name="description" content="Website Đăng ký & Theo dõi Lịch học linh hoạt cho học viên cấp tốc và dài hạn, đồng bộ 2 chiều với Google Sheet qua Vercel.">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+
+  <!-- Background Decorative Blurs -->
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+
+  <!-- Header Navigation -->
+  <header class="navbar">
+    <div class="container nav-container">
+      <div class="brand">
+        <div class="brand-icon">
+          <i class="fa-solid fa-calendar-check"></i>
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">EduSchedule</span>
+          <span class="brand-subtitle">Google Sheets Sync</span>
+        </div>
+      </div>
+
+      <nav class="nav-menu">
+        <button class="nav-btn active" data-tab="tab-register">
+          <i class="fa-solid fa-pen-to-square"></i> Đăng ký Lịch học
+        </button>
+        <button class="nav-btn" data-tab="tab-tracker">
+          <i class="fa-solid fa-clock-rotate-left"></i> Theo dõi Lịch học
+        </button>
+        <button class="nav-btn" data-tab="tab-guide">
+          <i class="fa-solid fa-sheet-plastic"></i> Kết nối Google Sheet
+        </button>
+      </nav>
+
+      <div class="nav-actions">
+        <button class="theme-toggle-btn" id="themeToggle" title="Chuyển chế độ Giao diện">
+          <i class="fa-solid fa-moon"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Body -->
+  <main class="main-content container">
+
+    <!-- TAB 1: FORM ĐĂNG KÝ LỊCH HỌC -->
+    <section id="tab-register" class="tab-pane active">
+      <div class="hero-banner">
+        <div class="badge-pill">
+          <i class="fa-solid fa-bolt"></i> Hệ thống Đăng ký Lịch học Thông minh
+        </div>
+        <h1 class="hero-title">Đăng ký Lộ trình & Thời khóa biểu Học tập</h1>
+        <p class="hero-desc">
+          Lựa chọn linh hoạt giữa chương trình <strong>Cấp tốc (4-5 buổi/tuần)</strong> hoặc <strong>Dài hạn (2-3 buổi/tuần)</strong>.
+          Hệ thống hỗ trợ <strong>chọn nhiều ca học cùng lúc</strong> và tự động đồng bộ thời gian thực về Google Sheet.
+        </p>
+      </div>
+
+      <div class="form-wrapper card glassmorphic">
+        <div class="card-header">
+          <h2><i class="fa-solid fa-user-graduate text-gradient"></i> Thông tin Đăng ký Học viên</h2>
+          <p class="text-muted">Vui lòng hoàn thành các thông tin dưới đây để đăng ký ca học</p>
+        </div>
+
+        <form id="registrationForm" novalidate>
+          <!-- Section 1: Thông tin cá nhân -->
+          <div class="form-section">
+            <h3 class="section-title"><i class="fa-solid fa-id-card"></i> 1. Thông tin Cá nhân</h3>
+            
+            <div class="form-grid col-3">
+              <div class="form-group">
+                <label for="fullName">Họ và Tên <span class="required">*</span></label>
+                <div class="input-wrapper">
+                  <i class="fa-solid fa-user input-icon"></i>
+                  <input type="text" id="fullName" name="fullName" placeholder="Ví dụ: Nguyễn Văn An" required>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="phone">Số Điện thoại / Zalo <span class="required">*</span></label>
+                <div class="input-wrapper">
+                  <i class="fa-solid fa-phone input-icon"></i>
+                  <input type="tel" id="phone" name="phone" placeholder="Ví dụ: 0987654321" required>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="email">Địa chỉ Email</label>
+                <div class="input-wrapper">
+                  <i class="fa-solid fa-envelope input-icon"></i>
+                  <input type="email" id="email" name="email" placeholder="hocvien@gmail.com">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 2: Loại hình & Số buổi học (Dynamic Dropdowns) -->
+          <div class="form-section">
+            <h3 class="section-title"><i class="fa-solid fa-layer-group"></i> 2. Loại hình Học & Tần suất</h3>
+            
+            <div class="form-grid col-2">
+              <!-- Dropdown 1: Loại học viên -->
+              <div class="form-group">
+                <label for="studentType">Loại hình Học viên <span class="required">*</span></label>
+                <div class="select-wrapper">
+                  <i class="fa-solid fa-fire input-icon text-warning"></i>
+                  <select id="studentType" name="studentType">
+                    <option value="Cấp tốc" selected>🔥 Học viên Cấp tốc (4 - 5 buổi/tuần)</option>
+                    <option value="Dài hạn">🌱 Học viên Dài hạn (2 - 3 buổi/tuần)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Dropdown 2: Số buổi/tuần (Được cập nhật tự động) -->
+              <div class="form-group">
+                <label for="sessionsPerWeek">Số Buổi đăng ký trên Tuần <span class="required">*</span></label>
+                <div class="select-wrapper">
+                  <i class="fa-solid fa-calendar-days input-icon text-primary"></i>
+                  <select id="sessionsPerWeek" name="sessionsPerWeek">
+                    <!-- Javascript populates options based on studentType -->
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 3: Chọn nhiều ca học cùng lúc (Multi-select Grid) -->
+          <div class="form-section">
+            <div class="section-header-flex">
+              <h3 class="section-title"><i class="fa-solid fa-cubes-stacked"></i> 3. Chọn Lịch & Ca Học (Đăng ký nhiều ca cùng lúc)</h3>
+              
+              <div class="validation-badge" id="slotCounterBadge">
+                <span class="badge-icon"><i class="fa-solid fa-circle-info"></i></span>
+                <span id="counterText">Đã chọn: 0 / 4 buổi</span>
+              </div>
+            </div>
+
+            <p class="hint-text">
+              <i class="fa-solid fa-lightbulb"></i> Bấm trực tiếp vào các ô bên dưới để chọn nhiều ca học mong muốn. Hệ thống hỗ trợ đăng ký đồng thời nhiều buổi trong tuần!
+            </p>
+
+            <!-- Multi-select Slot Matrix Grid -->
+            <div class="slots-matrix-container">
+              <div class="slots-grid" id="slotsGrid">
+                <!-- Javascript generates days & shift checkboxes -->
+              </div>
+            </div>
+
+            <!-- Tag display for selected slots -->
+            <div class="selected-tags-box">
+              <span class="tags-title"><i class="fa-solid fa-list-check"></i> Các ca đã chọn:</span>
+              <div class="tags-list" id="selectedTagsList">
+                <span class="empty-tag-hint">Chưa chọn ca học nào. Vui lòng bấm chọn trên bảng trên.</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 4: Mục tiêu & Ghi chú -->
+          <div class="form-section">
+            <h3 class="section-title"><i class="fa-solid fa-bullseye"></i> 4. Mục tiêu & Ghi chú thêm</h3>
+            
+            <div class="form-grid col-2">
+              <div class="form-group">
+                <label for="goal">Mục tiêu Học tập</label>
+                <div class="input-wrapper">
+                  <i class="fa-solid fa-bullseye input-icon"></i>
+                  <input type="text" id="goal" name="goal" placeholder="Ví dụ: Ôn thi tốt nghiệp, Nâng cao kỹ năng làm việc...">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="notes">Ghi chú cho Giảng viên / Trung tâm</label>
+                <div class="input-wrapper">
+                  <i class="fa-solid fa-comment-dots input-icon"></i>
+                  <input type="text" id="notes" name="notes" placeholder="Ví dụ: Muốn học ca tối muộn, yêu cầu giảng viên hỗ trợ online...">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Form Submit Action -->
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+              <span class="btn-text"><i class="fa-solid fa-paper-plane"></i> Gửi Đăng ký Lịch học</span>
+              <span class="btn-spinner d-none"><i class="fa-solid fa-spinner fa-spin"></i> Đang gửi lên Google Sheet...</span>
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </section>
+
+    <!-- TAB 2: TRA CỨU & THEO DÕI LỊCH HỌC -->
+    <section id="tab-tracker" class="tab-pane">
+      <div class="hero-banner compact">
+        <h1 class="hero-title">Tra cứu & Theo dõi Lịch học</h1>
+        <p class="hero-desc">Dữ liệu được cập nhật 2 chiều từ Google Sheet chính thức (ID: <code>1bv1twT1xlmRYWbEI3uzlEV-te5-pbtm5qIw7cqJa6HA</code>)</p>
+      </div>
+
+      <div class="tracker-toolbar card">
+        <div class="search-box">
+          <i class="fa-solid fa-magnifying-glass search-icon"></i>
+          <input type="text" id="searchInput" placeholder="Nhập Số điện thoại, Email hoặc Họ tên để tra cứu...">
+          <button class="btn btn-secondary" id="searchBtn">Tra cứu</button>
+        </div>
+
+        <div class="filter-tabs">
+          <button class="filter-btn active" data-filter="all">Tất cả (<span id="countAll">0</span>)</button>
+          <button class="filter-btn" data-filter="Chờ xác nhận">Chờ duyệt (<span id="countPending">0</span>)</button>
+          <button class="filter-btn" data-filter="Đã xác nhận">Đã xác nhận (<span id="countConfirmed">0</span>)</button>
+        </div>
+
+        <button class="btn btn-outline" id="refreshScheduleBtn" title="Tải lại từ Google Sheet">
+          <i class="fa-solid fa-rotate-right"></i> Làm mới
+        </button>
+      </div>
+
+      <!-- Schedule Results List -->
+      <div class="schedule-results-grid" id="scheduleResultsGrid">
+        <!-- Rendered by Javascript -->
+      </div>
+    </section>
+
+    <!-- TAB 3: HƯỚNG DẪN KẾT NỐI GOOGLE SHEET & VERCEL -->
+    <section id="tab-guide" class="tab-pane">
+      <div class="card glassmorphic guide-card">
+        <div class="card-header">
+          <h2><i class="fa-solid fa-plug text-gradient"></i> Hướng dẫn Kết nối Google Sheet 2 Chiều & Vercel</h2>
+          <p class="text-muted">Liên kết trực tiếp với Google Sheet ID: <code>1bv1twT1xlmRYWbEI3uzlEV-te5-pbtm5qIw7cqJa6HA</code></p>
+        </div>
+
+        <div class="guide-steps">
+          <div class="step-item">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <h3>Mở Google Sheet Target</h3>
+              <p>Mở file Google Sheet của bạn tại địa chỉ:</p>
+              <div class="code-box">
+                <code>https://docs.google.com/spreadsheets/d/1bv1twT1xlmRYWbEI3uzlEV-te5-pbtm5qIw7cqJa6HA/edit</code>
+                <button class="copy-btn" data-copy="https://docs.google.com/spreadsheets/d/1bv1twT1xlmRYWbEI3uzlEV-te5-pbtm5qIw7cqJa6HA/edit"><i class="fa-regular fa-copy"></i> Sao chép Link</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <h3>Tạo Apps Script Webhook 2 chiều</h3>
+              <p>Vào menu <strong>Tiện ích mở rộng (Extensions)</strong> &rarr; <strong>Apps Script</strong>. Dán mã nguồn từ file <code>google-apps-script.js</code> vào và lưu lại.</p>
+              <p>Bấm <strong>Triển khai (Deploy)</strong> &rarr; <strong>Thực thi dưới dạng Web App</strong>. Thiết lập quyền truy cập: <em>"Bất kỳ ai" (Anyone)</em>.</p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              <h3>Cấu hình Environment Variables trên Vercel</h3>
+              <p>Khi Deploy dự án này lên Vercel, hãy vào mục <strong>Settings &rarr; Environment Variables</strong> và thêm biến môi trường sau:</p>
+              <div class="code-box">
+                <pre>GOOGLE_SHEET_ID=1bv1twT1xlmRYWbEI3uzlEV-te5-pbtm5qIw7cqJa6HA
+GOOGLE_SCRIPT_URL=https://script.google.com/macros/s/AKfycbxYOUR_SCRIPT_ID/exec</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Modal Thông báo Đăng ký Thành công -->
+  <div class="modal-overlay d-none" id="successModal">
+    <div class="modal-card">
+      <div class="modal-icon success">
+        <i class="fa-solid fa-circle-check"></i>
+      </div>
+      <h3>Đăng ký Lịch học Thành công!</h3>
+      <p>Thông tin đăng ký lịch học của bạn đã được ghi nhận và đồng bộ trực tiếp lên <strong>Google Sheet</strong>.</p>
+      
+      <div class="modal-details" id="modalDetails">
+        <!-- Rendered by JS -->
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="modalCloseBtn">Đóng & Xem Lịch đã Đăng ký</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification System -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/form.js"></script>
+  <script src="js/schedule.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

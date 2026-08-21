@@ -1,0 +1,19 @@
+{
+  "name": "dangkytheodoilichhoc",
+  "version": "1.0.0",
+  "description": "Website Đăng ký & Theo dõi Lịch học đồng bộ 2 chiều với Google Sheets qua Vercel",
+  "main": "api/register.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "npx serve src"
+  },
+  "keywords": [
+    "registration",
+    "schedule",
+    "google-sheets",
+    "vercel",
+    "education"
+  ],
+  "author": "trangtan25-svg",
+  "license": "MIT"
+}
