@@ -7,7 +7,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initThemeToggle();
   initCopyButtons();
   initModalClose();
-  initScriptUrlConfig();
 });
 
 // 1. Navigation Tab Switching
@@ -121,65 +120,4 @@ function initModalClose() {
       }
     });
   }
-}
-
-// 6. Direct UI Apps Script URL Configuration & Test Connection
-function initScriptUrlConfig() {
-  const input = document.getElementById('scriptUrlInput');
-  const saveBtn = document.getElementById('saveScriptUrlBtn');
-  const statusDiv = document.getElementById('connectionStatus');
-
-  if (!input || !saveBtn) return;
-
-  const savedUrl = getActiveScriptUrl();
-  if (savedUrl) {
-    input.value = savedUrl;
-    if (statusDiv) {
-      statusDiv.innerHTML = `<span style="color: var(--success);"><i class="fa-solid fa-circle-check"></i> Đã có Web App URL. Đẵn sàng kết nối Google Sheet!</span>`;
-    }
-  }
-
-  saveBtn.addEventListener('click', async () => {
-    const url = input.value.trim();
-    if (!url) {
-      showToast('Vui lòng nhập Web App URL của bạn!', 'error');
-      return;
-    }
-
-    localStorage.setItem('GOOGLE_SCRIPT_URL', url);
-    CONFIG.DEFAULT_SCRIPT_URL = url;
-
-    saveBtn.disabled = true;
-    if (statusDiv) {
-      statusDiv.innerHTML = `<span style="color: var(--warning);"><i class="fa-solid fa-spinner fa-spin"></i> Đang kiểm tra kết nối tới Google Sheet...</span>`;
-    }
-
-    try {
-      const res = await fetch(url);
-      const data = await res.json();
-
-      if (data.status === 'success') {
-        if (statusDiv) {
-          statusDiv.innerHTML = `<span style="color: var(--success); font-weight: 700;"><i class="fa-solid fa-circle-check"></i> Kết nối Google Sheet thành công! Tìm thấy ${data.data.length} hàng dữ liệu.</span>`;
-        }
-        showToast('Kết nối Google Sheet thành công!', 'success');
-
-        if (typeof fetchScheduleData === 'function') {
-          fetchScheduleData();
-        }
-      } else {
-        if (statusDiv) {
-          statusDiv.innerHTML = `<span style="color: var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Lỗi kết nối: ${data.message || 'Không thể đọc dữ liệu'}</span>`;
-        }
-      }
-    } catch (err) {
-      console.error('Test connection error:', err);
-      if (statusDiv) {
-        statusDiv.innerHTML = `<span style="color: var(--success); font-weight: 700;"><i class="fa-solid fa-circle-check"></i> Đã lưu Web App URL thành công! (Dữ liệu sẵn sàng ghi vào Sheet).</span>`;
-      }
-      showToast('Đã lưu URL kết nối Google Sheet!', 'success');
-    } finally {
-      saveBtn.disabled = false;
-    }
-  });
 }

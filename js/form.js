@@ -1,5 +1,6 @@
 /**
  * FORM HANDLER & MULTI-SELECT MATRIX LOGIC
+ * Strictly uses Vercel Serverless API (/api/register) -> process.env.GOOGLE_SCRIPT_URL
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -185,8 +186,7 @@ function setupFormEventListeners() {
       sessionsPerWeek,
       selectedSlots: state.selectedSlots.map(s => s.label),
       goal,
-      notes,
-      scriptUrl: getActiveScriptUrl()
+      notes
     };
 
     const submitBtn = document.getElementById('submitBtn');
@@ -198,73 +198,48 @@ function setupFormEventListeners() {
     submitBtn.disabled = true;
 
     try {
-      let isSuccess = false;
-      let regId = 'DK-' + Date.now().toString().slice(-6);
-
-      // Attempt 1: Call Vercel Serverless API
-      try {
-        const res = await fetch(CONFIG.API.REGISTER, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const result = await res.json();
-        if (result.status === 'success') {
-          isSuccess = true;
-          if (result.registrationId) regId = result.registrationId;
-        }
-      } catch (errApi) {
-        console.warn('Vercel API route not responding, falling back to direct script URL...');
-      }
-
-      // Attempt 2: If Direct Script URL is saved, post to Apps Script URL directly
-      const directUrl = getActiveScriptUrl();
-      if (!isSuccess && directUrl) {
-        try {
-          await fetch(directUrl, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-          isSuccess = true;
-        } catch (errDirect) {
-          console.error('Direct fetch error:', errDirect);
-        }
-      }
-
-      // Show success modal & save locally
-      showSuccessModal(regId, payload);
-      showToast('Đăng ký thành công! Đã ghi nhận lịch học.', 'success');
-
-      state.registrations.unshift({
-        "Mã Đăng Ký": regId,
-        "Họ và Tên": fullName,
-        "Số Điện Thoại / Zalo": phone,
-        "Email": email,
-        "Loại Học Viên": studentType,
-        "Số Buổi / Tuần": sessionsPerWeek,
-        "Các Ca Học Đã Chọn": payload.selectedSlots.join(', '),
-        "Mục Tiêu Học Tập": goal,
-        "Ghi Chú": notes,
-        "Thời Gian Đăng Ký": new Date().toLocaleString('vi-VN'),
-        "Trạng Thái": "Chờ xác nhận"
+      // Send directly to Vercel Serverless API endpoint
+      const res = await fetch(CONFIG.API.REGISTER, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
+      const result = await res.json();
 
-      form.reset();
-      state.selectedSlots = [];
-      document.querySelectorAll('.slot-item.selected').forEach(el => el.classList.remove('selected'));
-      renderSelectedTags();
-      updateCounterBadge();
+      if (result.status === 'success') {
+        const regId = result.registrationId || 'DK-' + Date.now().toString().slice(-6);
+        showSuccessModal(regId, payload);
+        showToast('Đăng ký thành công! Đã gửi thông tin lên Google Sheet.', 'success');
 
-      if (typeof renderScheduleList === 'function') {
-        renderScheduleList();
+        state.registrations.unshift({
+          "Mã Đăng Ký": regId,
+          "Họ và Tên": fullName,
+          "Số Điện Thoại / Zalo": phone,
+          "Email": email,
+          "Loại Học Viên": studentType,
+          "Số Buổi / Tuần": sessionsPerWeek,
+          "Các Ca Học Đã Chọn": payload.selectedSlots.join(', '),
+          "Mục Tiêu Học Tập": goal,
+          "Ghi Chú": notes,
+          "Thời Gian Đăng Ký": new Date().toLocaleString('vi-VN'),
+          "Trạng Thái": "Chờ xác nhận"
+        });
+
+        form.reset();
+        state.selectedSlots = [];
+        document.querySelectorAll('.slot-item.selected').forEach(el => el.classList.remove('selected'));
+        renderSelectedTags();
+        updateCounterBadge();
+
+        if (typeof renderScheduleList === 'function') {
+          renderScheduleList();
+        }
+      } else {
+        showToast(result.message || 'Chưa nhận được phản hồi từ Google Sheet.', 'error');
       }
-
     } catch (err) {
       console.error('Submit error:', err);
-      showToast('Đã ghi nhận thông tin đăng ký.', 'success');
-      showSuccessModal('DK-' + Date.now().toString().slice(-6), payload);
+      showToast('Lỗi gửi dữ liệu. Vui lòng kiểm tra lại cấu hình Vercel GOOGLE_SCRIPT_URL.', 'error');
     } finally {
       btnText.classList.remove('d-none');
       btnSpinner.classList.add('d-none');

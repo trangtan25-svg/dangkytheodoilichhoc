@@ -45,7 +45,7 @@
           <i class="fa-solid fa-clock-rotate-left"></i> Theo dõi Lịch học
         </button>
         <button class="nav-btn" data-tab="tab-guide">
-          <i class="fa-solid fa-sheet-plastic"></i> Kết nối Google Sheet
+          <i class="fa-solid fa-sheet-plastic"></i> Hướng dẫn Vercel Env Vars
         </button>
       </nav>
 
@@ -238,31 +238,11 @@
       </div>
     </section>
 
-    <!-- TAB 3: HƯỚNG DẪN KẾT NỐI GOOGLE SHEET & CẤU HÌNH APPS SCRIPT -->
+    <!-- TAB 3: HƯỚNG DẪN KẾT NỐI GOOGLE SHEET & VERCEL ENV VARS -->
     <section id="tab-guide" class="tab-pane">
-      
-      <!-- CẤU HÌNH & TRỰC TIẾP KIỂM TRA KẾT NỐI APPS SCRIPT -->
-      <div class="card glassmorphic" style="margin-bottom: 24px; border-color: var(--primary);">
-        <div class="card-header">
-          <h2><i class="fa-solid fa-link text-gradient"></i> Cấu hình Web App URL từ Apps Script (Code.gs)</h2>
-          <p class="text-muted">Sau khi tạo Web App trên Google Apps Script, dán URL vào đây để kết nối tức thì với Google Sheet <code>1bv1twT1xlmRYWbEI3uzlEV-te5-pbtm5qIw7cqJa6HA</code>!</p>
-        </div>
-
-        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-          <div class="input-wrapper" style="flex: 1; min-width: 280px;">
-            <i class="fa-solid fa-key input-icon"></i>
-            <input type="url" id="scriptUrlInput" placeholder="https://script.google.com/macros/s/AKfycb.../exec">
-          </div>
-          <button class="btn btn-primary" id="saveScriptUrlBtn">
-            <i class="fa-solid fa-floppy-disk"></i> Lưu & Kiểm tra Kết nối
-          </button>
-        </div>
-        <div id="connectionStatus" style="margin-top: 12px; font-size: 0.9rem;"></div>
-      </div>
-
       <div class="card glassmorphic guide-card">
         <div class="card-header">
-          <h2><i class="fa-solid fa-plug text-gradient"></i> Hướng dẫn Kết nối Google Sheet 2 Chiều</h2>
+          <h2><i class="fa-solid fa-plug text-gradient"></i> Kết nối Trực tiếp qua Code.gs & Vercel Environment Variables</h2>
           <p class="text-muted">Liên kết trực tiếp với Google Sheet ID: <code>1bv1twT1xlmRYWbEI3uzlEV-te5-pbtm5qIw7cqJa6HA</code></p>
         </div>
 
@@ -282,20 +262,20 @@
           <div class="step-item">
             <div class="step-num">2</div>
             <div class="step-content">
-              <h3>Tạo Apps Script Webhook 2 chiều</h3>
-              <p>Vào menu <strong>Tiện ích mở rộng (Extensions)</strong> &rarr; <strong>Apps Script</strong>. Dán mã nguồn từ file <code>google-apps-script.js</code> vào và lưu lại.</p>
-              <p>Bấm <strong>Triển khai (Deploy)</strong> &rarr; <strong>Thực thi dưới dạng Web App</strong>. Thiết lập quyền truy cập: <em>"Bất kỳ ai" (Anyone)</em>.</p>
+              <h3>Tạo Apps Script Webhook (Code.gs)</h3>
+              <p>Vào menu <strong>Tiện ích mở rộng (Extensions)</strong> &rarr; <strong>Apps Script</strong>. Dán mã nguồn từ file <code>google-apps-script.js</code> vào <code>Code.gs</code> và lưu lại.</p>
+              <p>Bấm <strong>Triển khai (Deploy)</strong> &rarr; <strong>Thực thi dưới dạng Web App</strong>. Thiết lập quyền truy cập: <em>"Bất kỳ ai" (Anyone)</em>. Copy Web App URL.</p>
             </div>
           </div>
 
           <div class="step-item">
             <div class="step-num">3</div>
             <div class="step-content">
-              <h3>Cấu hình Environment Variables trên Vercel</h3>
-              <p>Khi Deploy dự án này lên Vercel, hãy vào mục <strong>Settings &rarr; Environment Variables</strong> và thêm biến môi trường sau:</p>
+              <h3>Đặt Biến Môi Trường trên Vercel Dashboard</h3>
+              <p>Vào Vercel Project &rarr; <strong>Settings &rarr; Environment Variables</strong> và điền 2 biến:</p>
               <div class="code-box">
                 <pre>GOOGLE_SHEET_ID=1bv1twT1xlmRYWbEI3uzlEV-te5-pbtm5qIw7cqJa6HA
-GOOGLE_SCRIPT_URL=https://script.google.com/macros/s/AKfycbxYOUR_SCRIPT_ID/exec</pre>
+GOOGLE_SCRIPT_URL=https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec</pre>
               </div>
             </div>
           </div>

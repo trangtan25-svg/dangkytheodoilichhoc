@@ -1,4 +1,4 @@
-// Vercel Serverless Function: Post New Registration to Google Sheet
+// Vercel Serverless Function: Post New Registration to Google Sheet via process.env.GOOGLE_SCRIPT_URL
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -17,36 +17,51 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const bodyData = req.body || {};
-    const scriptUrl = process.env.GOOGLE_SCRIPT_URL || bodyData.scriptUrl;
+    const scriptUrl = process.env.GOOGLE_SCRIPT_URL;
 
-    if (scriptUrl && scriptUrl.startsWith('http')) {
-      const response = await fetch(scriptUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(bodyData),
-        redirect: 'follow'
-      });
-
-      const textResult = await response.text();
-      let data;
-      try {
-        data = JSON.parse(textResult);
-      } catch (e) {
-        data = { status: 'success', raw: textResult };
-      }
-      return res.status(200).json(data);
-    } else {
-      // Return notice asking for Script URL
-      const registrationId = 'DK-' + Date.now().toString().slice(-6);
-      return res.status(200).json({
-        status: 'warning',
-        needConfig: true,
-        message: 'Chưa cấu hình GOOGLE_SCRIPT_URL trên Vercel. Dữ liệu tạm thời lưu tại trình duyệt.',
-        registrationId,
-        data: bodyData
+    if (!scriptUrl) {
+      return res.status(500).json({
+        status: 'error',
+        message: 'Chưa cấu hình biến môi trường GOOGLE_SCRIPT_URL trên Vercel. Vui lòng vào Vercel Settings -> Environment Variables để cài đặt.'
       });
     }
+
+    const { fullName, phone, email, studentType, sessionsPerWeek, selectedSlots, goal, notes } = req.body || {};
+
+    if (!fullName || !phone || !selectedSlots || selectedSlots.length === 0) {
+      return res.status(400).json({ 
+        status: 'error', 
+        message: 'Vui lòng điền đầy đủ Họ tên, SĐT và chọn ít nhất 1 ca học.' 
+      });
+    }
+
+    // Forward registration payload to Code.gs Web App
+    const response = await fetch(scriptUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        fullName,
+        phone,
+        email,
+        studentType,
+        sessionsPerWeek,
+        selectedSlots,
+        goal,
+        notes
+      }),
+      redirect: 'follow'
+    });
+
+    const textResult = await response.text();
+    let data;
+    try {
+      data = JSON.parse(textResult);
+    } catch (e) {
+      data = { status: 'success', raw: textResult };
+    }
+
+    return res.status(200).json(data);
+
   } catch (error) {
     console.error('Register API error:', error);
     return res.status(500).json({ status: 'error', message: error.message || 'Lỗi kết nối máy chủ.' });

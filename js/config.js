@@ -1,15 +1,12 @@
 /**
  * CONFIG & API ENDPOINTS
- * Direct sync with Google Sheet ID: 1bv1twT1xlmRYWbEI3uzlEV-te5-pbtm5qIw7cqJa6HA
+ * Direct sync with Google Sheet ID: 1bv1twT1xlmRYWbEI3uzlEV-te5-pbtm5qIw7cqJa6HA via Vercel Environment Variables
  */
 
 const CONFIG = {
   GOOGLE_SHEET_ID: '1bv1twT1xlmRYWbEI3uzlEV-te5-pbtm5qIw7cqJa6HA',
-  
-  // Bạn có thể dán trực tiếp URL Google Apps Script Web App của bạn vào đây nếu muốn!
-  DEFAULT_SCRIPT_URL: localStorage.getItem('GOOGLE_SCRIPT_URL') || '',
 
-  // API Endpoints
+  // Strict Vercel Serverless Endpoints
   API: {
     REGISTER: '/api/register',
     SCHEDULE: '/api/schedule'
@@ -46,8 +43,3 @@ const state = {
   targetSessionCount: 4,
   registrations: []
 };
-
-// Helper function to get active Apps Script URL
-function getActiveScriptUrl() {
-  return localStorage.getItem('GOOGLE_SCRIPT_URL') || CONFIG.DEFAULT_SCRIPT_URL || '';
-}
