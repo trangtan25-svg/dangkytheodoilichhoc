@@ -19,40 +19,46 @@ async function fetchScheduleData() {
   let success = false;
   let lastErrorMessage = '';
 
-  // Cách 1: Thử gọi Vercel Serverless Endpoint (/api/schedule)
-  try {
-    const res = await fetch(CONFIG.API.SCHEDULE + '?t=' + Date.now());
-    if (res.ok) {
-      const result = await res.json();
-      if (result.status === 'success' && Array.isArray(result.data)) {
-        state.registrations = result.data;
-        success = true;
-      } else if (result.message) {
-        lastErrorMessage = result.message;
+  // Ưu tiên 1: Gọi trực tiếp Google Apps Script URL nếu đã được lưu trong CONFIG / localStorage
+  if (CONFIG.GOOGLE_SCRIPT_URL) {
+    try {
+      const res = await fetch(CONFIG.GOOGLE_SCRIPT_URL + (CONFIG.GOOGLE_SCRIPT_URL.includes('?') ? '&' : '?') + 't=' + Date.now(), { redirect: 'follow' });
+      if (res.ok) {
+        const textRes = await res.text();
+        if (textRes.trim().startsWith('<')) {
+          lastErrorMessage = 'Bản triển khai Web App trên Google Script chưa chọn quyền "Anyone" (Bất kỳ ai). Google yêu cầu đăng nhập.';
+        } else {
+          const result = JSON.parse(textRes);
+          if (result.status === 'success' && Array.isArray(result.data)) {
+            state.registrations = result.data;
+            success = true;
+          } else if (result.message) {
+            lastErrorMessage = result.message;
+          }
+        }
       }
+    } catch (err) {
+      console.warn('Direct Google Script fetch error:', err);
     }
-  } catch (err) {
-    console.warn('Vercel API failed, trying direct Google Script URL...', err);
   }
 
-  // Cách 2: Dự phòng gọi trực tiếp Google Apps Script URL (nếu có trong CONFIG hoặc localStorage)
-  if (!success && CONFIG.GOOGLE_SCRIPT_URL) {
+  // Ưu tiên 2: Gọi qua Vercel API (/api/schedule) nếu chưa lấy được dữ liệu bằng URL trực tiếp
+  if (!success) {
     try {
-      const res = await fetch(CONFIG.GOOGLE_SCRIPT_URL, { redirect: 'follow' });
-      const textRes = await res.text();
-      if (textRes.trim().startsWith('<')) {
-        lastErrorMessage = 'Quyền truy cập Web App chưa chọn "Bất kỳ ai" (Anyone). Google đang yêu cầu đăng nhập.';
-      } else {
-        const result = JSON.parse(textRes);
+      const res = await fetch(CONFIG.API.SCHEDULE + '?t=' + Date.now());
+      if (res.ok) {
+        const result = await res.json();
         if (result.status === 'success' && Array.isArray(result.data)) {
           state.registrations = result.data;
           success = true;
         } else if (result.message) {
           lastErrorMessage = result.message;
         }
+      } else if (res.status === 404) {
+        lastErrorMessage = 'Môi trường hiện tại chưa cấu hình API Route (/api/schedule). Vui lòng dán Web App URL trực tiếp bên dưới.';
       }
     } catch (err) {
-      console.error('Direct Google Script fetch error:', err);
+      console.warn('Vercel API endpoint unavailable:', err);
     }
   }
 
