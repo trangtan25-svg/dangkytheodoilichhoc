@@ -128,8 +128,8 @@ function renderScheduleList() {
 
   // Update Count Badges
   const countAll = items.length;
-  const countPending = items.filter(i => (i['Trạng Thái'] || '').includes('Chờ')).length;
-  const countConfirmed = items.filter(i => (i['Trạng Thái'] || '').includes('xác nhận')).length;
+  const countPending = items.filter(i => (i['Trạng Thái'] || '').toString().includes('Chờ')).length;
+  const countConfirmed = items.filter(i => (i['Trạng Thái'] || '').toString().includes('xác nhận')).length;
 
   const countAllEl = document.getElementById('countAll');
   const countPendingEl = document.getElementById('countPending');
@@ -141,17 +141,18 @@ function renderScheduleList() {
 
   // Filter by Status
   if (currentFilter !== 'all') {
-    items = items.filter(i => (i['Trạng Thái'] || '').includes(currentFilter));
+    items = items.filter(i => (i['Trạng Thái'] || '').toString().includes(currentFilter));
   }
 
   // Filter by Search Query
   if (searchQuery.trim() !== '') {
     const q = searchQuery.toLowerCase();
     items = items.filter(i => 
-      (i['Họ và Tên'] || '').toLowerCase().includes(q) ||
-      (i['Số Điện Thoại / Zalo'] || '').includes(q) ||
-      (i['Email'] || '').toLowerCase().includes(q) ||
-      (i['Mã Đăng Ký'] || '').toLowerCase().includes(q)
+      (i['Họ và Tên'] || '').toString().toLowerCase().includes(q) ||
+      (i['Số Điện Thoại / Zalo'] || '').toString().toLowerCase().includes(q) ||
+      (i['Email'] || '').toString().toLowerCase().includes(q) ||
+      (i['Mã Đăng Ký'] || '').toString().toLowerCase().includes(q) ||
+      (i['Các Ca Học Đã Chọn'] || '').toString().toLowerCase().includes(q)
     );
   }
 
@@ -222,7 +223,7 @@ function renderScheduleList() {
         } else {
           dayHtml += `<div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">`;
           matchedStudents.forEach(st => {
-            const isConfirmed = (st['Trạng Thái'] || '').includes('xác nhận');
+            const isConfirmed = (st['Trạng Thái'] || '').toString().includes('xác nhận');
             dayHtml += `
               <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-card); padding: 8px 10px; border-radius: 6px; font-size: 0.84rem; border: 1px solid var(--border-color);">
                 <div>
@@ -263,7 +264,7 @@ function renderScheduleList() {
     container.style.gap = '20px';
 
     items.forEach(item => {
-      const isConfirmed = (item['Trạng Thái'] || '').includes('xác nhận');
+      const isConfirmed = (item['Trạng Thái'] || '').toString().includes('xác nhận');
       const statusClass = isConfirmed ? 'confirmed' : 'pending';
       const statusIcon = isConfirmed ? 'fa-circle-check' : 'fa-clock';
 

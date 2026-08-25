@@ -40,8 +40,8 @@ function renderAdminSlotsGrid() {
     dayCol.appendChild(header);
 
     shiftsList.forEach(shift => {
-      const matchedDrop = (state.dropdownSlots || []).find(ds => ds.day === day.label && (ds.shift === shift.label || ds.label.includes(shift.label)));
-      const isLocked = matchedDrop && matchedDrop.status && (matchedDrop.status.includes('khóa') || matchedDrop.status.includes('tắt'));
+      const matchedDrop = (state.dropdownSlots || []).find(ds => ds.day === day.label && (ds.shift === shift.label || (ds.label || '').toString().includes(shift.label)));
+      const isLocked = matchedDrop && matchedDrop.status && (matchedDrop.status.toString().includes('khóa') || matchedDrop.status.toString().includes('tắt'));
 
       const slotItem = document.createElement('div');
       slotItem.className = `slot-item ${isLocked ? 'full disabled' : ''}`;
@@ -107,7 +107,7 @@ function renderExistingSlotsTable() {
     const tr = document.createElement('tr');
     tr.style.borderBottom = '1px solid var(--border-color)';
 
-    const isLocked = s.status && (s.status.includes('khóa') || s.status.includes('tắt'));
+    const isLocked = s.status && (s.status.toString().includes('khóa') || s.status.toString().includes('tắt'));
 
     tr.innerHTML = `
       <td style="padding: 12px; font-weight: 600;">${s.day || ''}</td>
@@ -158,7 +158,7 @@ function openEditSlotModal(day, shift, time, status) {
   document.getElementById('editNewDay').value = day;
   document.getElementById('editNewShift').value = shift;
   document.getElementById('editNewTime').value = time;
-  document.getElementById('editNewStatus').value = status.includes('khóa') ? 'Đã khóa' : 'Hoạt động';
+  document.getElementById('editNewStatus').value = (status || '').toString().includes('khóa') ? 'Đã khóa' : 'Hoạt động';
 
   modal.classList.remove('d-none');
 }
@@ -188,7 +188,7 @@ async function updateSingleSlotStatus(day, shift, targetStatus, btnElement) {
       }
 
       // Update local state
-      const targetDrop = (state.dropdownSlots || []).find(ds => ds.day === day && (ds.shift === shift || ds.label.includes(shift)));
+      const targetDrop = (state.dropdownSlots || []).find(ds => ds.day === day && (ds.shift === shift || (ds.label || '').toString().includes(shift)));
       if (targetDrop) {
         targetDrop.status = targetStatus;
       } else {

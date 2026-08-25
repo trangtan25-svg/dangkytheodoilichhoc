@@ -108,8 +108,8 @@ function renderSlotsGrid() {
       const count = slotCounts[slotLabel] || 0;
 
       // Kiểm tra xem Ca học có bị Admin khóa không
-      const matchedDrop = (state.dropdownSlots || []).find(ds => ds.day === day.label && (ds.shift === shift.label || ds.label.includes(shift.label)));
-      const isAdminLocked = matchedDrop && matchedDrop.status && (matchedDrop.status.includes('khóa') || matchedDrop.status.includes('tắt'));
+      const matchedDrop = (state.dropdownSlots || []).find(ds => ds.day === day.label && (ds.shift === shift.label || (ds.label || '').toString().includes(shift.label)));
+      const isAdminLocked = matchedDrop && matchedDrop.status && (matchedDrop.status.toString().includes('khóa') || matchedDrop.status.toString().includes('tắt'));
 
       const isFull = count >= maxCapacity;
       const isDisabled = isFull || isAdminLocked;
