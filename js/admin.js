@@ -358,17 +358,42 @@ function setupAdminEventListeners() {
     });
   }
 
-  // Form Thêm Ca học mới vào Sheet quanlykhunggio
+  // Lắng nghe nút Chọn Tất Cả các Thứ trong form Thêm Ca Học
+  const selectAllDaysAdd = document.getElementById('selectAllDaysAdd');
+  if (selectAllDaysAdd) {
+    selectAllDaysAdd.addEventListener('change', () => {
+      const isChecked = selectAllDaysAdd.checked;
+      document.querySelectorAll('input[name="newSlotDays"]').forEach(cb => {
+        cb.checked = isChecked;
+      });
+    });
+  }
+
+  // Cập nhật lại trạng thái nút Chọn Tất Cả khi người dùng tick/untick lẻ từng Thứ
+  document.querySelectorAll('input[name="newSlotDays"]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const allCbs = Array.from(document.querySelectorAll('input[name="newSlotDays"]'));
+      const allChecked = allCbs.every(c => c.checked);
+      if (selectAllDaysAdd) selectAllDaysAdd.checked = allChecked;
+    });
+  });
+
+  // Form Thêm Ca học mới vào Sheet quanlykhunggio (Cho phép chọn nhiều Thứ hoặc Chọn Tất Cả)
   if (addSlotForm) {
     addSlotForm.addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      const day = document.getElementById('newSlotDay').value;
+      const checkedDays = Array.from(document.querySelectorAll('input[name="newSlotDays"]:checked')).map(c => c.value);
       const shift = document.getElementById('newSlotShift').value.trim();
       const time = document.getElementById('newSlotTime').value.trim();
 
-      if (!day || !shift) {
-        if (typeof showToast === 'function') showToast('Vui lòng nhập Thứ và Tên ca học!', 'error');
+      if (checkedDays.length === 0) {
+        if (typeof showToast === 'function') showToast('Vui lòng chọn ít nhất 1 Thứ để áp dụng ca học mới!', 'error');
+        return;
+      }
+
+      if (!shift) {
+        if (typeof showToast === 'function') showToast('Vui lòng nhập Tên ca học mới!', 'error');
         return;
       }
 
@@ -380,23 +405,38 @@ function setupAdminEventListeners() {
       btnSpinner.classList.remove('d-none');
       submitBtn.disabled = true;
 
-      try {
-        const res = await fetch(CONFIG.API.REGISTER, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'addDropdownSlot',
-            day: day,
-            shift: shift,
-            time: time
-          })
-        });
+      let successCount = 0;
+      let lastMsg = '';
 
-        const result = await res.json();
-        if (result && result.status === 'success') {
-          if (typeof showToast === 'function') showToast(result.message || 'Đã thêm ca học mới thành công!', 'success');
+      try {
+        // Lặp qua tất cả các Thứ được chọn để gửi request thêm ca học vào Google Sheet
+        for (const d of checkedDays) {
+          const res = await fetch(CONFIG.API.REGISTER, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'addDropdownSlot',
+              day: d,
+              shift: shift,
+              time: time
+            })
+          });
+
+          const result = await res.json();
+          if (result && result.status === 'success') {
+            successCount++;
+          } else if (result.message) {
+            lastMsg = result.message;
+          }
+        }
+
+        if (successCount > 0) {
+          if (typeof showToast === 'function') {
+            showToast(`Đã thêm thành công ca học "${shift}" cho ${successCount}/${checkedDays.length} Thứ vào Google Sheet!`, 'success');
+          }
 
           addSlotForm.reset();
+          if (selectAllDaysAdd) selectAllDaysAdd.checked = false;
 
           if (typeof fetchScheduleData === 'function') await fetchScheduleData();
 
@@ -405,7 +445,7 @@ function setupAdminEventListeners() {
           if (typeof renderSlotsGrid === 'function') renderSlotsGrid();
 
         } else {
-          if (typeof showToast === 'function') showToast(result.message || 'Thêm ca học thất bại.', 'error');
+          if (typeof showToast === 'function') showToast(lastMsg || 'Thêm ca học thất bại.', 'error');
         }
       } catch (err) {
         console.error('Add slot error:', err);

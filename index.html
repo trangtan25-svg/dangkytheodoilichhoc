@@ -390,19 +390,42 @@
           </div>
 
           <form id="addDropdownSlotForm">
-            <div class="form-group" style="margin-bottom: 16px;">
-              <label for="newSlotDay">Chọn Thứ / Ngày <span class="required">*</span></label>
-              <div class="select-wrapper">
-                <i class="fa-solid fa-calendar-day input-icon text-primary"></i>
-                <select id="newSlotDay" name="newSlotDay" required>
-                  <option value="Thứ 2">Thứ 2</option>
-                  <option value="Thứ 3">Thứ 3</option>
-                  <option value="Thứ 4">Thứ 4</option>
-                  <option value="Thứ 5">Thứ 5</option>
-                  <option value="Thứ 6">Thứ 6</option>
-                  <option value="Thứ 7">Thứ 7</option>
-                  <option value="Chủ Nhật">Chủ Nhật</option>
-                </select>
+            <div class="form-group" style="margin-bottom: 20px;">
+              <label style="font-weight: 700; margin-bottom: 10px; display: block; color: var(--text-main);">
+                <i class="fa-solid fa-calendar-days text-primary"></i> Chọn Thứ / Ngày áp dụng <span class="required">*</span>
+              </label>
+
+              <!-- Nút Chọn Tất Cả các Thứ -->
+              <div style="margin-bottom: 12px;">
+                <label style="display: inline-flex; align-items: center; gap: 8px; background: rgba(79, 70, 229, 0.15); color: var(--primary); padding: 8px 14px; border-radius: 6px; font-weight: 700; cursor: pointer; border: 1px solid var(--primary);">
+                  <input type="checkbox" id="selectAllDaysAdd" style="width: 17px; height: 17px; cursor: pointer;">
+                  🌟 Chọn Tất Cả các Thứ (Thứ 2 &rarr; Chủ Nhật)
+                </label>
+              </div>
+
+              <!-- Lưới các nút Checkbox chọn từng Thứ -->
+              <div style="display: flex; flex-wrap: wrap; gap: 8px;" id="addSlotDaysContainer">
+                <label class="btn btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px 12px; font-size: 0.85rem;">
+                  <input type="checkbox" name="newSlotDays" value="Thứ 2" style="cursor: pointer;"> Thứ 2
+                </label>
+                <label class="btn btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px 12px; font-size: 0.85rem;">
+                  <input type="checkbox" name="newSlotDays" value="Thứ 3" style="cursor: pointer;"> Thứ 3
+                </label>
+                <label class="btn btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px 12px; font-size: 0.85rem;">
+                  <input type="checkbox" name="newSlotDays" value="Thứ 4" style="cursor: pointer;"> Thứ 4
+                </label>
+                <label class="btn btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px 12px; font-size: 0.85rem;">
+                  <input type="checkbox" name="newSlotDays" value="Thứ 5" style="cursor: pointer;"> Thứ 5
+                </label>
+                <label class="btn btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px 12px; font-size: 0.85rem;">
+                  <input type="checkbox" name="newSlotDays" value="Thứ 6" style="cursor: pointer;"> Thứ 6
+                </label>
+                <label class="btn btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px 12px; font-size: 0.85rem;">
+                  <input type="checkbox" name="newSlotDays" value="Thứ 7" style="cursor: pointer;"> Thứ 7
+                </label>
+                <label class="btn btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px 12px; font-size: 0.85rem;">
+                  <input type="checkbox" name="newSlotDays" value="Chủ Nhật" style="cursor: pointer;"> Chủ Nhật
+                </label>
               </div>
             </div>
 
