@@ -17,15 +17,18 @@ async function fetchScheduleData() {
   container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px;"><i class="fa-solid fa-spinner fa-spin fa-2x text-primary"></i><p style="margin-top: 10px; color: var(--text-muted);">Đang tải dữ liệu thời khóa biểu từ Google Sheet...</p></div>';
 
   let success = false;
+  let lastErrorMessage = '';
 
   // Cách 1: Thử gọi Vercel Serverless Endpoint (/api/schedule)
   try {
-    const res = await fetch(CONFIG.API.SCHEDULE);
+    const res = await fetch(CONFIG.API.SCHEDULE + '?t=' + Date.now());
     if (res.ok) {
       const result = await res.json();
       if (result.status === 'success' && Array.isArray(result.data)) {
         state.registrations = result.data;
         success = true;
+      } else if (result.message) {
+        lastErrorMessage = result.message;
       }
     }
   } catch (err) {
@@ -36,10 +39,17 @@ async function fetchScheduleData() {
   if (!success && CONFIG.GOOGLE_SCRIPT_URL) {
     try {
       const res = await fetch(CONFIG.GOOGLE_SCRIPT_URL, { redirect: 'follow' });
-      const result = await res.json();
-      if (result.status === 'success' && Array.isArray(result.data)) {
-        state.registrations = result.data;
-        success = true;
+      const textRes = await res.text();
+      if (textRes.trim().startsWith('<')) {
+        lastErrorMessage = 'Quyền truy cập Web App chưa chọn "Bất kỳ ai" (Anyone). Google đang yêu cầu đăng nhập.';
+      } else {
+        const result = JSON.parse(textRes);
+        if (result.status === 'success' && Array.isArray(result.data)) {
+          state.registrations = result.data;
+          success = true;
+        } else if (result.message) {
+          lastErrorMessage = result.message;
+        }
       }
     } catch (err) {
       console.error('Direct Google Script fetch error:', err);
@@ -52,16 +62,17 @@ async function fetchScheduleData() {
       renderSlotsGrid();
     }
   } else {
-    renderConnectionPrompt(container);
+    renderConnectionPrompt(container, lastErrorMessage);
   }
 }
 
-function renderConnectionPrompt(container) {
+function renderConnectionPrompt(container, errorMessage = '') {
   const currentUrl = CONFIG.GOOGLE_SCRIPT_URL || '';
   container.innerHTML = `
     <div style="grid-column: 1/-1; padding: 32px 24px; background: var(--bg-card); border-radius: var(--radius-lg); border: 1px dashed var(--primary); text-align: center;">
       <i class="fa-solid fa-link-slash fa-3x text-warning" style="margin-bottom: 16px;"></i>
-      <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 8px;">Chưa kết nối được với Google Sheet</h3>
+      <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 8px;">Chưa lấy được dữ liệu từ Google Sheet</h3>
+      ${errorMessage ? `<p style="color: var(--danger); font-weight: 600; font-size: 0.95rem; background: rgba(239,68,68,0.1); padding: 10px; border-radius: 6px; margin: 12px auto; max-width: 650px;"><i class="fa-solid fa-triangle-exclamation"></i> ${errorMessage}</p>` : ''}
       <p style="color: var(--text-muted); font-size: 0.9rem; max-width: 600px; margin: 0 auto 20px auto;">
         Vui lòng dán <strong>URL Web App từ Google Apps Script</strong> của bạn vào bên dưới để hoàn tất liên kết dữ liệu 2 chiều.
       </p>
