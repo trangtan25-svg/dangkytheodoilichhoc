@@ -264,22 +264,46 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    // A2. Xóa Khung giờ / Ca học khỏi sheet quanlykhunggio
+    // A2. Xóa Khung giờ / Ca học khỏi sheet quanlykhunggio (Tự động nhận diện Dạng Bảng hoặc Dạng Danh Sách)
     if (contents.action === 'deleteDropdownSlot') {
       const targetDayNorm = removeVietnameseTones(contents.day);
       const targetShiftNorm = removeVietnameseTones(contents.shift);
 
       const dropData = dropdownSheet.getDataRange().getValues();
 
-      for (let i = dropData.length - 1; i >= 1; i--) {
-        const dayNorm = removeVietnameseTones(dropData[i][0]);
-        const shiftNorm = removeVietnameseTones(dropData[i][1]);
+      if (dropData && dropData.length > 0) {
+        const headers = dropData[0].map(h => (h || '').toString().trim());
 
-        const dayMatch = (dayNorm === targetDayNorm) || dayNorm.includes(targetDayNorm) || targetDayNorm.includes(dayNorm);
-        const shiftMatch = (shiftNorm === targetShiftNorm) || shiftNorm.includes(targetShiftNorm) || targetShiftNorm.includes(shiftNorm);
+        let matrixColIndex = -1;
+        for (let c = 1; c < headers.length; c++) {
+          const hNorm = removeVietnameseTones(headers[c]);
+          if (targetShiftNorm && (hNorm === targetShiftNorm || hNorm.includes(targetShiftNorm) || targetShiftNorm.includes(hNorm))) {
+            if (!hNorm.includes('tenca') && !hNorm.includes('thoigian') && !hNorm.includes('trangthai')) {
+              matrixColIndex = c;
+              break;
+            }
+          }
+        }
 
-        if (dayMatch && shiftMatch) {
-          dropdownSheet.deleteRow(i + 1);
+        if (matrixColIndex > -1) {
+          for (let i = 1; i < dropData.length; i++) {
+            const dayNorm = removeVietnameseTones(dropData[i][0]);
+            if (!targetDayNorm || dayNorm === targetDayNorm || dayNorm.includes(targetDayNorm) || targetDayNorm.includes(dayNorm)) {
+              dropdownSheet.getRange(i + 1, matrixColIndex + 1).setValue('');
+            }
+          }
+        } else {
+          for (let i = dropData.length - 1; i >= 1; i--) {
+            const dayNorm = removeVietnameseTones(dropData[i][0]);
+            const shiftNorm = removeVietnameseTones(dropData[i][1]);
+
+            const dayMatch = !targetDayNorm || (dayNorm === targetDayNorm) || dayNorm.includes(targetDayNorm) || targetDayNorm.includes(dayNorm);
+            const shiftMatch = !targetShiftNorm || (shiftNorm === targetShiftNorm) || shiftNorm.includes(targetShiftNorm) || targetShiftNorm.includes(shiftNorm);
+
+            if (dayMatch && shiftMatch) {
+              dropdownSheet.deleteRow(i + 1);
+            }
+          }
         }
       }
 
@@ -291,7 +315,7 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    // A3. Chỉnh sửa Khung giờ / Ca học trong sheet quanlykhunggio
+    // A3. Chỉnh sửa Khung giờ / Ca học trong sheet quanlykhunggio (Tự động nhận diện Dạng Bảng hoặc Dạng Danh Sách)
     if (contents.action === 'editDropdownSlot') {
       const oldDayNorm = removeVietnameseTones(contents.oldDay || contents.day);
       const oldShiftNorm = removeVietnameseTones(contents.oldShift || contents.shift);
@@ -302,27 +326,54 @@ function doPost(e) {
       const newStatus = contents.status || 'Hoạt động';
 
       const dropData = dropdownSheet.getDataRange().getValues();
-      let updated = false;
 
-      for (let i = 1; i < dropData.length; i++) {
-        const dayNorm = removeVietnameseTones(dropData[i][0]);
-        const shiftNorm = removeVietnameseTones(dropData[i][1]);
+      if (dropData && dropData.length > 0) {
+        const headers = dropData[0].map(h => (h || '').toString().trim());
 
-        const dayMatch = (dayNorm === oldDayNorm) || dayNorm.includes(oldDayNorm) || oldDayNorm.includes(dayNorm);
-        const shiftMatch = (shiftNorm === oldShiftNorm) || shiftNorm.includes(oldShiftNorm) || oldShiftNorm.includes(shiftNorm);
-
-        if (dayMatch && shiftMatch) {
-          dropdownSheet.getRange(i + 1, 1).setValue(newDay);
-          dropdownSheet.getRange(i + 1, 2).setValue(newShift);
-          dropdownSheet.getRange(i + 1, 3).setValue(newTime);
-          dropdownSheet.getRange(i + 1, 4).setValue(newStatus);
-          updated = true;
-          break;
+        let matrixColIndex = -1;
+        for (let c = 1; c < headers.length; c++) {
+          const hNorm = removeVietnameseTones(headers[c]);
+          if (oldShiftNorm && (hNorm === oldShiftNorm || hNorm.includes(oldShiftNorm) || oldShiftNorm.includes(hNorm))) {
+            if (!hNorm.includes('tenca') && !hNorm.includes('thoigian') && !hNorm.includes('trangthai')) {
+              matrixColIndex = c;
+              break;
+            }
+          }
         }
-      }
 
-      if (!updated) {
-        dropdownSheet.appendRow([newDay, newShift, newTime, newStatus]);
+        if (matrixColIndex > -1) {
+          if (newShift && newShift !== contents.oldShift) {
+            dropdownSheet.getRange(1, matrixColIndex + 1).setValue(newShift);
+          }
+          for (let i = 1; i < dropData.length; i++) {
+            const dayNorm = removeVietnameseTones(dropData[i][0]);
+            if (!oldDayNorm || dayNorm === oldDayNorm || dayNorm.includes(oldDayNorm) || oldDayNorm.includes(dayNorm)) {
+              dropdownSheet.getRange(i + 1, matrixColIndex + 1).setValue(newStatus);
+            }
+          }
+        } else {
+          let updated = false;
+          for (let i = 1; i < dropData.length; i++) {
+            const dayNorm = removeVietnameseTones(dropData[i][0]);
+            const shiftNorm = removeVietnameseTones(dropData[i][1]);
+
+            const dayMatch = !oldDayNorm || (dayNorm === oldDayNorm) || dayNorm.includes(oldDayNorm) || oldDayNorm.includes(dayNorm);
+            const shiftMatch = !oldShiftNorm || (shiftNorm === oldShiftNorm) || shiftNorm.includes(oldShiftNorm) || oldShiftNorm.includes(shiftNorm);
+
+            if (dayMatch && shiftMatch) {
+              dropdownSheet.getRange(i + 1, 1).setValue(newDay);
+              dropdownSheet.getRange(i + 1, 2).setValue(newShift);
+              dropdownSheet.getRange(i + 1, 3).setValue(newTime);
+              dropdownSheet.getRange(i + 1, 4).setValue(newStatus);
+              updated = true;
+              break;
+            }
+          }
+
+          if (!updated) {
+            dropdownSheet.appendRow([newDay, newShift, newTime, newStatus]);
+          }
+        }
       }
 
       return ContentService

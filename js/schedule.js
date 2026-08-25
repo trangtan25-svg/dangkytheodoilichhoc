@@ -239,7 +239,7 @@ function renderScheduleList() {
                       <i class="fa-solid fa-circle-check"></i> Xác nhận
                     </button>
                   `}
-                  <button class="btn btn-sm btn-danger delete-student-btn" data-regid="${st['Mã Đăng Ký']}" data-name="${st['Họ và Tên'] || 'Học viên'}" style="padding: 4px 8px; font-size: 0.76rem; white-space: nowrap;">
+                  <button class="btn btn-sm btn-danger delete-student-btn" data-regid="${st['Mã Đăng Ký']}" data-name="${st['Họ và Tên'] || 'Học viên'}" data-rowindex="${st.rowIndex || ''}" style="padding: 4px 8px; font-size: 0.76rem; white-space: nowrap;">
                     <i class="fa-solid fa-trash-can"></i> Xóa
                   </button>
                 </div>
@@ -310,7 +310,7 @@ function renderScheduleList() {
               <i class="fa-solid fa-circle-check"></i> Xác nhận Đăng ký
             </button>
           `}
-          <button class="btn btn-sm btn-danger delete-student-btn" data-regid="${item['Mã Đăng Ký']}" data-name="${item['Họ và Tên'] || 'Học viên'}">
+          <button class="btn btn-sm btn-danger delete-student-btn" data-regid="${item['Mã Đăng Ký']}" data-name="${item['Họ và Tên'] || 'Học viên'}" data-rowindex="${item.rowIndex || ''}">
             <i class="fa-solid fa-trash-can"></i> Xóa
           </button>
         </div>
@@ -335,16 +335,15 @@ function renderScheduleList() {
       e.stopPropagation();
       const regId = btn.dataset.regid;
       const studentName = btn.dataset.name;
-      deleteStudentRegistration(regId, studentName, btn);
+      const rowIndex = btn.dataset.rowindex;
+      deleteStudentRegistration(regId, studentName, rowIndex, btn);
     });
   });
 }
 
 // Hàm Nhân viên Xóa Đơn Đăng ký học viên -> Đồng bộ trực tiếp xóa dòng trên Google Sheet
-async function deleteStudentRegistration(registrationId, studentName, btnElement) {
-  if (!registrationId) return;
-
-  if (!confirm(`Bạn có chắc chắn muốn XÓA đơn đăng ký của học viên "${studentName}" (Mã: ${registrationId}) khỏi Google Sheet?`)) {
+async function deleteStudentRegistration(registrationId, studentName, rowIndex, btnElement) {
+  if (!confirm(`Bạn có chắc chắn muốn XÓA đơn đăng ký của học viên "${studentName}" khỏi Google Sheet?`)) {
     return;
   }
 
@@ -360,14 +359,15 @@ async function deleteStudentRegistration(registrationId, studentName, btnElement
       body: JSON.stringify({
         action: 'deleteRegistration',
         registrationId: registrationId,
-        fullName: studentName
+        fullName: studentName,
+        rowIndex: rowIndex ? parseInt(rowIndex) : null
       })
     });
 
     const result = await res.json();
     if (result && result.status === 'success') {
       if (typeof showToast === 'function') {
-        showToast(`Đã xóa đơn đăng ký của học viên "${studentName}" thành công!`, 'success');
+        showToast(result.message || `Đã xóa đơn đăng ký của học viên "${studentName}" thành công!`, 'success');
       }
 
       await fetchScheduleData();
