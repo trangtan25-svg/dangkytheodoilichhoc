@@ -1,4 +1,4 @@
-// Vercel Serverless Function: Post New Registration to Google Sheet via process.env.GOOGLE_SCRIPT_URL
+// Vercel Serverless Function: Post New Registration & Admin Actions to Google Sheet via process.env.GOOGLE_SCRIPT_URL
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -28,49 +28,31 @@ module.exports = async (req, res) => {
 
     const body = req.body || {};
 
-    // 1. Trường hợp các Hành động Quản trị & Xác nhận từ nhân viên
-    if (body.action) {
-      const response = await fetch(scriptUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(body),
-        redirect: 'follow'
-      });
-
-      const textResult = await response.text();
-      let data;
-      try { data = JSON.parse(textResult); } catch (e) { data = { status: 'success', raw: textResult }; }
-      return res.status(200).json(data);
-    }
-
-    // 2. Trường hợp Học viên đăng ký mới
-    const { fullName, phone, email, studentType, sessionsPerWeek, selectedSlots, goal, notes } = body;
-
-    if (!fullName || !phone || !selectedSlots || selectedSlots.length === 0) {
-      return res.status(400).json({ 
-        status: 'error', 
-        message: 'Vui lòng điền đầy đủ Họ tên, SĐT và chọn ít nhất 1 ca học.' 
-      });
-    }
-
-    // Forward registration payload to Code.gs Web App
+    // Gửi yêu cầu POST sang Google Apps Script Web App
     const response = await fetch(scriptUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({
-        fullName,
-        phone,
-        email,
-        studentType,
-        sessionsPerWeek,
-        selectedSlots,
-        goal,
-        notes
-      }),
+      body: JSON.stringify(body),
       redirect: 'follow'
     });
 
     const textResult = await response.text();
+
+    // Kiểm tra lỗi 401 / 403 / 404 hoặc HTML login redirect từ Google
+    if (response.status === 401 || response.status === 403 || textResult.trim().startsWith('<')) {
+      return res.status(200).json({
+        status: 'error',
+        message: 'Google Apps Script từ chối kết nối (Mã 401/403). NGUYÊN NHÂN: Khi Triển khai (Deploy) Web App trong Google Sheet, mục "Ai có quyền truy cập" (Who has access) PHẢI CHỌN LÀ "Bất kỳ ai" (Anyone).'
+      });
+    }
+
+    if (response.status === 404) {
+      return res.status(200).json({
+        status: 'error',
+        message: 'Không tìm thấy Google Web App (Mã 404). Vui lòng kiểm tra lại URL biến GOOGLE_SCRIPT_URL trên Vercel.'
+      });
+    }
+
     let data;
     try {
       data = JSON.parse(textResult);
