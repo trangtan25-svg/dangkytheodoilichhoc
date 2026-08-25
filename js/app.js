@@ -9,27 +9,85 @@ document.addEventListener('DOMContentLoaded', () => {
   initModalClose();
 });
 
-// 1. Navigation Tab Switching
+// 1. Navigation Tab Switching with Password Authentication Protection (Pass: 12345)
 function initNavigationTabs() {
   const navButtons = document.querySelectorAll('.nav-btn');
   const tabPanes = document.querySelectorAll('.tab-pane');
+  const authModal = document.getElementById('authPasswordModal');
+  const authForm = document.getElementById('authPasswordForm');
+  const authInput = document.getElementById('authPasswordInput');
+  const authCancelBtn = document.getElementById('authPasswordCancelBtn');
+
+  let pendingTab = null;
+
+  function switchTab(targetTabId) {
+    navButtons.forEach(b => {
+      if (b.dataset.tab === targetTabId) b.classList.add('active');
+      else b.classList.remove('active');
+    });
+
+    tabPanes.forEach(pane => {
+      if (pane.id === targetTabId) pane.classList.add('active');
+      else pane.classList.remove('active');
+    });
+  }
 
   navButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       const targetTab = btn.dataset.tab;
 
-      navButtons.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-
-      tabPanes.forEach(pane => {
-        if (pane.id === targetTab) {
-          pane.classList.add('active');
-        } else {
-          pane.classList.remove('active');
+      // Bảo mật cho Tab Theo dõi Lịch học
+      if (targetTab === 'tab-tracker' && !state.isStaffAuthenticated) {
+        pendingTab = targetTab;
+        if (authModal) {
+          authModal.classList.remove('d-none');
+          if (authInput) {
+            authInput.value = '';
+            setTimeout(() => authInput.focus(), 100);
+          }
         }
-      });
+        return;
+      }
+
+      switchTab(targetTab);
     });
   });
+
+  if (authForm) {
+    authForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const enteredPassword = authInput ? authInput.value.trim() : '';
+
+      if (enteredPassword === '12345') {
+        state.isStaffAuthenticated = true;
+        if (authModal) authModal.classList.add('d-none');
+        if (typeof showToast === 'function') {
+          showToast('Xác thực mật khẩu Quản trị viên thành công!', 'success');
+        }
+        if (pendingTab) {
+          switchTab(pendingTab);
+          pendingTab = null;
+        } else {
+          switchTab('tab-tracker');
+        }
+      } else {
+        if (typeof showToast === 'function') {
+          showToast('Mật khẩu không chính xác! Vui lòng thử lại (Mật khẩu: 12345)', 'error');
+        }
+        if (authInput) {
+          authInput.value = '';
+          authInput.focus();
+        }
+      }
+    });
+  }
+
+  if (authCancelBtn && authModal) {
+    authCancelBtn.addEventListener('click', () => {
+      authModal.classList.add('d-none');
+      pendingTab = null;
+    });
+  }
 }
 
 // 2. Dark / Light Theme Toggle

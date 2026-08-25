@@ -227,6 +227,15 @@
         <button class="btn btn-outline" id="refreshScheduleBtn" title="Tải lại từ Google Sheet">
           <i class="fa-solid fa-rotate-right"></i> Làm mới
         </button>
+
+        <div style="display: flex; gap: 8px; margin-left: auto;">
+          <button class="btn btn-outline active" id="viewModeGridBtn" title="Xem danh sách ca học theo Thứ">
+            <i class="fa-solid fa-calendar-days"></i> Xem theo Thứ & Ca
+          </button>
+          <button class="btn btn-outline" id="viewModeCardsBtn" title="Xem danh sách học viên dạng thẻ">
+            <i class="fa-solid fa-users"></i> Thẻ Học Viên
+          </button>
+        </div>
       </div>
 
       <!-- Schedule Results List -->
@@ -253,6 +262,36 @@
       <div class="modal-actions">
         <button class="btn btn-primary" id="modalCloseBtn">Đóng & Xem Lịch đã Đăng ký</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Modal Nhập Mật khẩu Bảo mật cho Tab Theo dõi Lịch học (Mật khẩu: 12345) -->
+  <div class="modal-overlay d-none" id="authPasswordModal">
+    <div class="modal-card" style="max-width: 420px;">
+      <div class="modal-icon" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-size: 1.8rem; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto;">
+        <i class="fa-solid fa-lock"></i>
+      </div>
+      <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 8px;">Yêu cầu Mật khẩu Quản trị</h3>
+      <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 16px;">
+        Mục <strong>Theo dõi lịch học & Duyệt học viên</strong> dành cho Quản lý / Nhân viên. Vui lòng nhập mật khẩu:
+      </p>
+      
+      <form id="authPasswordForm">
+        <div class="form-group" style="margin-bottom: 20px; text-align: left;">
+          <label for="authPasswordInput">Mật khẩu truy cập <span class="required">*</span></label>
+          <div class="input-wrapper">
+            <i class="fa-solid fa-key input-icon"></i>
+            <input type="password" id="authPasswordInput" placeholder="Nhập mật khẩu (12345)" required autocomplete="current-password">
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+          <button type="button" class="btn btn-outline" id="authPasswordCancelBtn">Hủy bỏ</button>
+          <button type="submit" class="btn btn-primary" id="authPasswordSubmitBtn">
+            <i class="fa-solid fa-right-to-bracket"></i> Đăng nhập
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 

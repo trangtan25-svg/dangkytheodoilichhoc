@@ -26,7 +26,29 @@ module.exports = async (req, res) => {
       });
     }
 
-    const { fullName, phone, email, studentType, sessionsPerWeek, selectedSlots, goal, notes } = req.body || {};
+    const body = req.body || {};
+
+    // 1. Trường hợp nút Xác nhận từ nhân viên
+    if (body.action === 'confirm' || body.action === 'confirmRegistration') {
+      if (!body.registrationId) {
+        return res.status(400).json({ status: 'error', message: 'Thiếu mã đăng ký registrationId.' });
+      }
+
+      const response = await fetch(scriptUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(body),
+        redirect: 'follow'
+      });
+
+      const textResult = await response.text();
+      let data;
+      try { data = JSON.parse(textResult); } catch (e) { data = { status: 'success', raw: textResult }; }
+      return res.status(200).json(data);
+    }
+
+    // 2. Trường hợp Học viên đăng ký mới
+    const { fullName, phone, email, studentType, sessionsPerWeek, selectedSlots, goal, notes } = body;
 
     if (!fullName || !phone || !selectedSlots || selectedSlots.length === 0) {
       return res.status(400).json({ 

@@ -185,6 +185,38 @@ function doPost(e) {
     const sheet = getSheet(SHEET_REGISTRATIONS);
     const contents = JSON.parse(e.postData.contents);
 
+    // Xử lý Hành động Nút Xác nhận từ Nhân viên
+    if (contents.action === 'confirm' || contents.action === 'confirmRegistration') {
+      const regId = contents.registrationId;
+      const data = sheet.getDataRange().getValues();
+      let foundIndex = -1;
+
+      for (let i = 1; i < data.length; i++) {
+        const rowRegId = data[i][0] ? data[i][0].toString().trim() : '';
+        if (rowRegId === regId || ('DK-' + i) === regId) {
+          foundIndex = i + 1;
+          break;
+        }
+      }
+
+      if (foundIndex > -1) {
+        sheet.getRange(foundIndex, 11).setValue('Đã xác nhận');
+        return ContentService
+          .createTextOutput(JSON.stringify({
+            status: 'success',
+            message: 'Đã xác nhận đăng ký thành công cho mã ' + regId
+          }))
+          .setMimeType(ContentService.MimeType.JSON);
+      } else {
+        return ContentService
+          .createTextOutput(JSON.stringify({
+            status: 'error',
+            message: 'Không tìm thấy mã đăng ký ' + regId + ' trong Google Sheet!'
+          }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
     const requestedSlots = Array.isArray(contents.selectedSlots)
       ? contents.selectedSlots
       : (contents.selectedSlots ? [contents.selectedSlots] : []);

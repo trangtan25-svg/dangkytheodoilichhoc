@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 let currentFilter = 'all';
 let searchQuery = '';
+let currentViewMode = 'grid'; // 'grid' | 'cards'
 
 async function fetchScheduleData() {
   const container = document.getElementById('scheduleResultsGrid');
@@ -19,7 +20,6 @@ async function fetchScheduleData() {
   let success = false;
   let lastErrorMessage = '';
 
-  // Kết nối trực tiếp qua Vercel Serverless Endpoint (/api/schedule -> process.env.GOOGLE_SCRIPT_URL)
   try {
     const res = await fetch(CONFIG.API.SCHEDULE + '?t=' + Date.now());
     if (res.ok) {
@@ -64,6 +64,62 @@ function renderErrorNotice(container, errorMessage = '') {
   `;
 }
 
+// Hàm Nhân viên Xác nhận Đăng ký học viên -> Đồng bộ trực tiếp lên Google Sheet
+async function confirmStudentRegistration(registrationId, btnElement) {
+  if (!registrationId) return;
+
+  if (btnElement) {
+    btnElement.disabled = true;
+    btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang duyệt...';
+  }
+
+  try {
+    const res = await fetch(CONFIG.API.REGISTER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'confirmRegistration',
+        registrationId: registrationId
+      })
+    });
+
+    const result = await res.json();
+    if (result && result.status === 'success') {
+      if (typeof showToast === 'function') {
+        showToast(`Đã xác nhận đăng ký thành công cho mã ${registrationId}!`, 'success');
+      }
+
+      // Cập nhật trạng thái cục bộ
+      const target = (state.registrations || []).find(r => r['Mã Đăng Ký'] === registrationId);
+      if (target) {
+        target['Trạng Thái'] = 'Đã xác nhận';
+      }
+
+      renderScheduleList();
+      if (typeof renderSlotsGrid === 'function') {
+        renderSlotsGrid();
+      }
+    } else {
+      if (typeof showToast === 'function') {
+        showToast(result.message || 'Chưa thể xác nhận đăng ký.', 'error');
+      }
+      if (btnElement) {
+        btnElement.disabled = false;
+        btnElement.innerHTML = '<i class="fa-solid fa-circle-check"></i> Xác nhận';
+      }
+    }
+  } catch (err) {
+    console.error('Confirm error:', err);
+    if (typeof showToast === 'function') {
+      showToast('Lỗi kết nối khi xác nhận đăng ký.', 'error');
+    }
+    if (btnElement) {
+      btnElement.disabled = false;
+      btnElement.innerHTML = '<i class="fa-solid fa-circle-check"></i> Xác nhận';
+    }
+  }
+}
+
 function renderScheduleList() {
   const container = document.getElementById('scheduleResultsGrid');
   if (!container) return;
@@ -75,9 +131,13 @@ function renderScheduleList() {
   const countPending = items.filter(i => (i['Trạng Thái'] || '').includes('Chờ')).length;
   const countConfirmed = items.filter(i => (i['Trạng Thái'] || '').includes('xác nhận')).length;
 
-  document.getElementById('countAll').textContent = countAll;
-  document.getElementById('countPending').textContent = countPending;
-  document.getElementById('countConfirmed').textContent = countConfirmed;
+  const countAllEl = document.getElementById('countAll');
+  const countPendingEl = document.getElementById('countPending');
+  const countConfirmedEl = document.getElementById('countConfirmed');
+
+  if (countAllEl) countAllEl.textContent = countAll;
+  if (countPendingEl) countPendingEl.textContent = countPending;
+  if (countConfirmedEl) countConfirmedEl.textContent = countConfirmed;
 
   // Filter by Status
   if (currentFilter !== 'all') {
@@ -107,46 +167,160 @@ function renderScheduleList() {
   }
 
   container.innerHTML = '';
-  items.forEach(item => {
-    const isConfirmed = (item['Trạng Thái'] || '').includes('xác nhận');
-    const statusClass = isConfirmed ? 'confirmed' : 'pending';
-    const statusIcon = isConfirmed ? 'fa-circle-check' : 'fa-clock';
 
-    const card = document.createElement('div');
-    card.className = 'student-card';
-    card.innerHTML = `
-      <div class="student-card-header">
-        <span style="font-weight: 800; font-size: 0.85rem; color: var(--primary);">${item['Mã Đăng Ký'] || 'DK-REG'}</span>
-        <span class="status-badge ${statusClass}">
-          <i class="fa-solid ${statusIcon}"></i> ${item['Trạng Thái'] || 'Chờ xác nhận'}
-        </span>
-      </div>
+  // CHẾ ĐỘ 1: XEM THEO THỨ & CA HỌC (GRID VIEW)
+  if (currentViewMode === 'grid') {
+    container.style.display = 'grid';
+    container.style.gridTemplateColumns = 'repeat(auto-fit, minmax(320px, 1fr))';
+    container.style.gap = '20px';
 
-      <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 8px;">${item['Họ và Tên'] || 'Học viên'}</h3>
-      
-      <div style="font-size: 0.88rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px;">
-        <div><i class="fa-solid fa-phone" style="width: 18px;"></i> ${item['Số Điện Thoại / Zalo'] || 'N/A'}</div>
-        ${item['Email'] ? `<div><i class="fa-solid fa-envelope" style="width: 18px;"></i> ${item['Email']}</div>` : ''}
-        <div><i class="fa-solid fa-fire" style="width: 18px;"></i> ${item['Loại Học Viên'] || 'Cấp tốc'} (${item['Số Buổi / Tuần'] || ''})</div>
-      </div>
+    // 7 Ngày trong tuần
+    const daysList = CONFIG.DAYS || [
+      { key: 'T2', label: 'Thứ 2' },
+      { key: 'T3', label: 'Thứ 3' },
+      { key: 'T4', label: 'Thứ 4' },
+      { key: 'T5', label: 'Thứ 5' },
+      { key: 'T6', label: 'Thứ 6' },
+      { key: 'T7', label: 'Thứ 7' },
+      { key: 'CN', label: 'Chủ Nhật' }
+    ];
 
-      <div style="background: var(--bg-input); padding: 10px 12px; border-radius: var(--radius-md); font-size: 0.83rem;">
-        <span style="font-weight: 700; color: var(--text-main); display: block; margin-bottom: 4px;">
-          <i class="fa-solid fa-calendar-week text-primary"></i> Lịch học đăng ký:
-        </span>
-        <div style="color: var(--text-muted); line-height: 1.4;">
-          ${item['Các Ca Học Đã Chọn'] || 'Chưa chọn ca'}
+    const shiftsList = (Array.isArray(state.dropdownSlots) && state.dropdownSlots.length > 0)
+      ? Array.from(new Set(state.dropdownSlots.map(s => s.shift || s.label)))
+      : ['Khung giờ 1', 'Khung giờ 2'];
+
+    daysList.forEach(day => {
+      const dayCard = document.createElement('div');
+      dayCard.className = 'card';
+      dayCard.style.padding = '18px';
+
+      let dayHtml = `
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 2px solid var(--primary);">
+          <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--primary);"><i class="fa-solid fa-calendar-day"></i> ${day.label}</h3>
         </div>
-      </div>
+      `;
 
-      ${item['Mục Tiêu Học Tập'] ? `
-        <div style="margin-top: 10px; font-size: 0.8rem; color: var(--text-muted);">
-          <strong>Mục tiêu:</strong> ${item['Mục Tiêu Học Tập']}
+      shiftsList.forEach(shiftName => {
+        // Tìm các học viên đăng ký ca học này trong ngày này
+        const matchedStudents = items.filter(reg => {
+          const selectedStr = (reg['Các Ca Học Đã Chọn'] || '').toString();
+          return selectedStr.includes(day.label) && selectedStr.includes(shiftName);
+        });
+
+        const studentCount = matchedStudents.length;
+
+        dayHtml += `
+          <div style="background: var(--bg-input); padding: 12px; border-radius: var(--radius-md); margin-bottom: 12px; border-left: 4px solid ${studentCount >= 9 ? 'var(--danger)' : 'var(--primary)'};">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-weight: 700; font-size: 0.9rem; color: var(--text-main);"><i class="fa-solid fa-clock text-warning"></i> ${shiftName}</span>
+              <span class="slot-capacity-badge" style="font-size: 0.8rem; padding: 2px 8px;">${studentCount}/9 người</span>
+            </div>
+        `;
+
+        if (matchedStudents.length === 0) {
+          dayHtml += `<p style="font-size: 0.8rem; color: var(--text-muted); font-style: italic; margin: 4px 0;">Chưa có học viên đăng ký ca này</p>`;
+        } else {
+          dayHtml += `<div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">`;
+          matchedStudents.forEach(st => {
+            const isConfirmed = (st['Trạng Thái'] || '').includes('xác nhận');
+            dayHtml += `
+              <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-card); padding: 8px 10px; border-radius: 6px; font-size: 0.84rem; border: 1px solid var(--border-color);">
+                <div>
+                  <div style="font-weight: 700;">${st['Họ và Tên'] || 'Học viên'}</div>
+                  <div style="font-size: 0.78rem; color: var(--text-muted);"><i class="fa-solid fa-phone"></i> ${st['Số Điện Thoại / Zalo'] || ''} | <span style="color: var(--primary);">${st['Mã Đăng Ký'] || ''}</span></div>
+                </div>
+                <div>
+                  ${isConfirmed ? `
+                    <span style="font-size: 0.75rem; color: var(--success); font-weight: 700; background: rgba(16, 185, 129, 0.15); padding: 4px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
+                      <i class="fa-solid fa-check-double"></i> Đã duyệt
+                    </span>
+                  ` : `
+                    <button class="btn btn-sm btn-success confirm-student-btn" data-regid="${st['Mã Đăng Ký']}" style="padding: 4px 10px; font-size: 0.78rem; white-space: nowrap;">
+                      <i class="fa-solid fa-circle-check"></i> Xác nhận
+                    </button>
+                  `}
+                </div>
+              </div>
+            `;
+          });
+          dayHtml += `</div>`;
+        }
+
+        dayHtml += `</div>`;
+      });
+
+      dayCard.innerHTML = dayHtml;
+      container.appendChild(dayCard);
+    });
+
+  } else {
+    // CHẾ ĐỘ 2: XEM DẠNG THẺ HỌC VIÊN (CARDS VIEW)
+    container.style.display = 'grid';
+    container.style.gridTemplateColumns = 'repeat(auto-fill, minmax(300px, 1fr))';
+    container.style.gap = '20px';
+
+    items.forEach(item => {
+      const isConfirmed = (item['Trạng Thái'] || '').includes('xác nhận');
+      const statusClass = isConfirmed ? 'confirmed' : 'pending';
+      const statusIcon = isConfirmed ? 'fa-circle-check' : 'fa-clock';
+
+      const card = document.createElement('div');
+      card.className = 'student-card';
+      card.innerHTML = `
+        <div class="student-card-header">
+          <span style="font-weight: 800; font-size: 0.85rem; color: var(--primary);">${item['Mã Đăng Ký'] || 'DK-REG'}</span>
+          <span class="status-badge ${statusClass}">
+            <i class="fa-solid ${statusIcon}"></i> ${item['Trạng Thái'] || 'Chờ xác nhận'}
+          </span>
         </div>
-      ` : ''}
-    `;
 
-    container.appendChild(card);
+        <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 8px;">${item['Họ và Tên'] || 'Học viên'}</h3>
+        
+        <div style="font-size: 0.88rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px;">
+          <div><i class="fa-solid fa-phone" style="width: 18px;"></i> ${item['Số Điện Thoại / Zalo'] || 'N/A'}</div>
+          ${item['Email'] ? `<div><i class="fa-solid fa-envelope" style="width: 18px;"></i> ${item['Email']}</div>` : ''}
+          ${item['Loại Học Viên'] ? `<div><i class="fa-solid fa-fire" style="width: 18px;"></i> ${item['Loại Học Viên']} (${item['Số Buổi / Tuần'] || ''})</div>` : ''}
+        </div>
+
+        <div style="background: var(--bg-input); padding: 10px 12px; border-radius: var(--radius-md); font-size: 0.83rem; margin-bottom: 12px;">
+          <span style="font-weight: 700; color: var(--text-main); display: block; margin-bottom: 4px;">
+            <i class="fa-solid fa-calendar-week text-primary"></i> Lịch học đăng ký:
+          </span>
+          <div style="color: var(--text-muted); line-height: 1.4;">
+            ${item['Các Ca Học Đã Chọn'] || 'Chưa chọn ca'}
+          </div>
+        </div>
+
+        ${item['Mục Tiêu Học Tập'] ? `
+          <div style="margin-bottom: 14px; font-size: 0.8rem; color: var(--text-muted);">
+            <strong>Mục tiêu:</strong> ${item['Mục Tiêu Học Tập']}
+          </div>
+        ` : ''}
+
+        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-color); display: flex; justify-content: flex-end;">
+          ${isConfirmed ? `
+            <span style="font-size: 0.8rem; color: var(--success); font-weight: 700; background: rgba(16, 185, 129, 0.15); padding: 6px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px;">
+              <i class="fa-solid fa-check-double"></i> Đã xác nhận đăng ký
+            </span>
+          ` : `
+            <button class="btn btn-sm btn-success confirm-student-btn" data-regid="${item['Mã Đăng Ký']}">
+              <i class="fa-solid fa-circle-check"></i> Xác nhận Đăng ký
+            </button>
+          `}
+        </div>
+      `;
+
+      container.appendChild(card);
+    });
+  }
+
+  // Gắn sự kiện cho các Nút Xác Nhận của Nhân viên
+  document.querySelectorAll('.confirm-student-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const regId = btn.dataset.regid;
+      confirmStudentRegistration(regId, btn);
+    });
   });
 }
 
@@ -155,6 +329,24 @@ function setupScheduleEventListeners() {
   const searchBtn = document.getElementById('searchBtn');
   const refreshBtn = document.getElementById('refreshScheduleBtn');
   const filterBtns = document.querySelectorAll('.filter-btn');
+  const viewGridBtn = document.getElementById('viewModeGridBtn');
+  const viewCardsBtn = document.getElementById('viewModeCardsBtn');
+
+  if (viewGridBtn && viewCardsBtn) {
+    viewGridBtn.addEventListener('click', () => {
+      currentViewMode = 'grid';
+      viewGridBtn.classList.add('active');
+      viewCardsBtn.classList.remove('active');
+      renderScheduleList();
+    });
+
+    viewCardsBtn.addEventListener('click', () => {
+      currentViewMode = 'cards';
+      viewCardsBtn.classList.add('active');
+      viewGridBtn.classList.remove('active');
+      renderScheduleList();
+    });
+  }
 
   if (searchBtn && searchInput) {
     searchBtn.addEventListener('click', () => {

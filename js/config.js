@@ -41,5 +41,6 @@ const state = {
   selectedSlots: [],
   targetSessionCount: 4,
   registrations: [],
-  dropdownSlots: []
+  dropdownSlots: [],
+  isStaffAuthenticated: false
 };
