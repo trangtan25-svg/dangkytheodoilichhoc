@@ -19,49 +19,24 @@ async function fetchScheduleData() {
   let success = false;
   let lastErrorMessage = '';
 
-  // Ưu tiên 1: Gọi trực tiếp Google Apps Script URL nếu đã được lưu trong CONFIG / localStorage
-  if (CONFIG.GOOGLE_SCRIPT_URL) {
-    try {
-      const res = await fetch(CONFIG.GOOGLE_SCRIPT_URL + (CONFIG.GOOGLE_SCRIPT_URL.includes('?') ? '&' : '?') + 't=' + Date.now(), { redirect: 'follow' });
-      if (res.ok) {
-        const textRes = await res.text();
-        if (textRes.trim().startsWith('<')) {
-          lastErrorMessage = 'Bản triển khai Web App trên Google Script chưa chọn quyền "Anyone" (Bất kỳ ai). Google yêu cầu đăng nhập.';
-        } else {
-          const result = JSON.parse(textRes);
-          if (result.status === 'success') {
-            state.registrations = Array.isArray(result.registrations) ? result.registrations : (Array.isArray(result.data) ? result.data : []);
-            state.dropdownSlots = Array.isArray(result.dropdowns) ? result.dropdowns : [];
-            success = true;
-          } else if (result.message) {
-            lastErrorMessage = result.message;
-          }
-        }
+  // Kết nối trực tiếp qua Vercel Serverless Endpoint (/api/schedule -> process.env.GOOGLE_SCRIPT_URL)
+  try {
+    const res = await fetch(CONFIG.API.SCHEDULE + '?t=' + Date.now());
+    if (res.ok) {
+      const result = await res.json();
+      if (result.status === 'success') {
+        state.registrations = Array.isArray(result.registrations) ? result.registrations : (Array.isArray(result.data) ? result.data : []);
+        state.dropdownSlots = Array.isArray(result.dropdowns) ? result.dropdowns : [];
+        success = true;
+      } else if (result.message) {
+        lastErrorMessage = result.message;
       }
-    } catch (err) {
-      console.warn('Direct Google Script fetch error:', err);
+    } else {
+      lastErrorMessage = `Lỗi máy chủ HTTP ${res.status}. Vui lòng kiểm tra lại cấu hình biến môi trường GOOGLE_SCRIPT_URL trên Vercel.`;
     }
-  }
-
-  // Ưu tiên 2: Gọi qua Vercel API (/api/schedule) nếu chưa lấy được dữ liệu bằng URL trực tiếp
-  if (!success) {
-    try {
-      const res = await fetch(CONFIG.API.SCHEDULE + '?t=' + Date.now());
-      if (res.ok) {
-        const result = await res.json();
-        if (result.status === 'success') {
-          state.registrations = Array.isArray(result.registrations) ? result.registrations : (Array.isArray(result.data) ? result.data : []);
-          state.dropdownSlots = Array.isArray(result.dropdowns) ? result.dropdowns : [];
-          success = true;
-        } else if (result.message) {
-          lastErrorMessage = result.message;
-        }
-      } else if (res.status === 404) {
-        lastErrorMessage = 'Môi trường hiện tại chưa cấu hình API Route (/api/schedule). Vui lòng dán Web App URL trực tiếp bên dưới.';
-      }
-    } catch (err) {
-      console.warn('Vercel API endpoint unavailable:', err);
-    }
+  } catch (err) {
+    console.error('Fetch schedule error:', err);
+    lastErrorMessage = 'Lỗi kết nối mạng hoặc serverless function không phản hồi.';
   }
 
   if (success) {
@@ -70,44 +45,23 @@ async function fetchScheduleData() {
       renderSlotsGrid();
     }
   } else {
-    renderConnectionPrompt(container, lastErrorMessage);
+    renderErrorNotice(container, lastErrorMessage);
   }
 }
 
-function renderConnectionPrompt(container, errorMessage = '') {
-  const currentUrl = CONFIG.GOOGLE_SCRIPT_URL || '';
+function renderErrorNotice(container, errorMessage = '') {
   container.innerHTML = `
-    <div style="grid-column: 1/-1; padding: 32px 24px; background: var(--bg-card); border-radius: var(--radius-lg); border: 1px dashed var(--primary); text-align: center;">
-      <i class="fa-solid fa-link-slash fa-3x text-warning" style="margin-bottom: 16px;"></i>
-      <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 8px;">Chưa lấy được dữ liệu từ Google Sheet</h3>
-      ${errorMessage ? `<p style="color: var(--danger); font-weight: 600; font-size: 0.95rem; background: rgba(239,68,68,0.1); padding: 10px; border-radius: 6px; margin: 12px auto; max-width: 650px;"><i class="fa-solid fa-triangle-exclamation"></i> ${errorMessage}</p>` : ''}
-      <p style="color: var(--text-muted); font-size: 0.9rem; max-width: 600px; margin: 0 auto 20px auto;">
-        Vui lòng dán <strong>URL Web App từ Google Apps Script</strong> của bạn vào bên dưới để hoàn tất liên kết dữ liệu 2 chiều.
+    <div style="grid-column: 1/-1; padding: 40px 24px; background: var(--bg-card); border-radius: var(--radius-lg); border: 1px dashed var(--danger); text-align: center;">
+      <i class="fa-solid fa-triangle-exclamation fa-3x text-danger" style="margin-bottom: 16px;"></i>
+      <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 8px;">Chưa kết nối được với Google Sheet qua Vercel</h3>
+      <p style="color: var(--danger); font-size: 0.95rem; max-width: 600px; margin: 0 auto 12px auto; font-weight: 600;">
+        ${errorMessage || 'Không thể lấy dữ liệu thời khóa biểu.'}
       </p>
-      
-      <div style="display: flex; gap: 10px; max-width: 650px; margin: 0 auto;">
-        <input type="url" id="scriptUrlInput" value="${currentUrl}" placeholder="https://script.google.com/macros/s/AKfycb.../exec" style="flex: 1; padding: 10px 14px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: var(--radius-md); color: var(--text-main); font-size: 0.9rem;">
-        <button id="saveScriptUrlBtn" class="btn btn-primary" style="white-space: nowrap;">
-          <i class="fa-solid fa-plug"></i> Kết nối ngay
-        </button>
-      </div>
-      <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 12px;">
-        <i class="fa-solid fa-circle-info"></i> Sau khi bấm "Kết nối ngay", dữ liệu thời khóa biểu và số lượng học viên từng ca sẽ được hiển thị ngay lập tức!
+      <p style="color: var(--text-muted); font-size: 0.85rem; max-width: 600px; margin: 0 auto;">
+        Vui lòng kiểm tra biến môi trường <code>GOOGLE_SCRIPT_URL</code> trong <strong>Vercel Project Settings -&gt; Environment Variables</strong> và đảm bảo bạn đã Redeploy phiên bản mới nhất.
       </p>
     </div>
   `;
-
-  document.getElementById('saveScriptUrlBtn').addEventListener('click', () => {
-    const inputVal = document.getElementById('scriptUrlInput').value.trim();
-    if (!inputVal || !inputVal.includes('script.google.com')) {
-      if (typeof showToast === 'function') showToast('Vui lòng dán đúng URL Google Apps Script dạng https://script.google.com/macros/s/.../exec', 'error');
-      return;
-    }
-    localStorage.setItem('GOOGLE_SCRIPT_URL', inputVal);
-    CONFIG.GOOGLE_SCRIPT_URL = inputVal;
-    if (typeof showToast === 'function') showToast('Đã lưu cấu hình kết nối Google Sheet!', 'success');
-    fetchScheduleData();
-  });
 }
 
 function renderScheduleList() {
