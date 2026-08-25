@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Đăng ký & Theo dõi Lịch học | Đồng bộ Google Sheet</title>
-  <meta name="description" content="Website Đăng ký & Theo dõi Lịch học linh hoạt cho học viên cấp tốc và dài hạn, đồng bộ 2 chiều với Google Sheet qua Vercel.">
+  <title>Texac Center Schedule | Đăng ký & Theo dõi Lịch học</title>
+  <meta name="description" content="Website Texac Center Schedule - Đăng ký & Theo dõi Lịch học linh hoạt, đồng bộ 2 chiều với Google Sheet qua Vercel.">
   
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -32,7 +32,7 @@
           <i class="fa-solid fa-calendar-check"></i>
         </div>
         <div class="brand-text">
-          <span class="brand-title">EduSchedule</span>
+          <span class="brand-title">Texac Center Schedule</span>
           <span class="brand-subtitle">Google Sheets Sync</span>
         </div>
       </div>
@@ -43,6 +43,9 @@
         </button>
         <button class="nav-btn" data-tab="tab-tracker">
           <i class="fa-solid fa-clock-rotate-left"></i> Theo dõi Lịch học
+        </button>
+        <button class="nav-btn" data-tab="tab-admin">
+          <i class="fa-solid fa-sliders"></i> Quản trị Lịch học
         </button>
       </nav>
 
@@ -244,6 +247,40 @@
       </div>
     </section>
 
+    <!-- TAB 3: QUẢN TRỊ NGÀY HỌC & GIỜ HỌC -->
+    <section id="tab-admin" class="tab-pane">
+      <div class="hero-banner compact" style="background: linear-gradient(135deg, rgba(79, 70, 229, 0.15), rgba(16, 185, 129, 0.15)); border: 1px solid rgba(79, 70, 229, 0.2);">
+        <h1 class="hero-title"><i class="fa-solid fa-sliders text-primary"></i> Quản trị Ngày & Ca Học (Texac Center)</h1>
+        <p class="hero-desc">Mở hoặc Khóa tùy chọn các ngày học và khung giờ học trong tuần. Mọi thay đổi sẽ tự động khóa hoặc mở ô đăng ký trên website và đồng bộ 2 chiều về Google Sheet.</p>
+      </div>
+
+      <div class="tracker-toolbar card" style="margin-bottom: 24px;">
+        <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; width: 100%;">
+          <button class="btn btn-success" id="openAllSlotsBtn">
+            <i class="fa-solid fa-lock-open"></i> Mở tất cả 7 Ngày (Cả 2 khung giờ)
+          </button>
+          <button class="btn btn-danger" id="lockAllSlotsBtn">
+            <i class="fa-solid fa-lock"></i> Khóa tất cả các Ca học
+          </button>
+          <button class="btn btn-outline" id="refreshAdminSlotsBtn" style="margin-left: auto;">
+            <i class="fa-solid fa-rotate-right"></i> Làm mới Quản trị
+          </button>
+        </div>
+      </div>
+
+      <!-- Admin Slots Matrix Grid -->
+      <div class="card" style="padding: 24px;">
+        <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-calendar-check text-primary"></i> Trạng thái Mở / Khóa Ca học tuần này
+        </h3>
+        <div class="slots-matrix-container">
+          <div class="slots-grid" id="adminSlotsGrid">
+            <!-- Rendered by Javascript -->
+          </div>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <!-- Modal Thông báo Đăng ký Thành công -->
@@ -302,6 +339,7 @@
   <script src="js/config.js"></script>
   <script src="js/form.js"></script>
   <script src="js/schedule.js"></script>
+  <script src="js/admin.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

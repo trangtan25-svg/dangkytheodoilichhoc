@@ -30,14 +30,18 @@ function initNavigationTabs() {
       if (pane.id === targetTabId) pane.classList.add('active');
       else pane.classList.remove('active');
     });
+
+    if (targetTabId === 'tab-admin' && typeof renderAdminSlotsGrid === 'function') {
+      renderAdminSlotsGrid();
+    }
   }
 
   navButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       const targetTab = btn.dataset.tab;
 
-      // Bảo mật cho Tab Theo dõi Lịch học
-      if (targetTab === 'tab-tracker' && !state.isStaffAuthenticated) {
+      // Bảo mật bằng Mật khẩu (12345) cho Tab Theo dõi Lịch học & Quản trị Lịch học
+      if ((targetTab === 'tab-tracker' || targetTab === 'tab-admin') && !state.isStaffAuthenticated) {
         pendingTab = targetTab;
         if (authModal) {
           authModal.classList.remove('d-none');

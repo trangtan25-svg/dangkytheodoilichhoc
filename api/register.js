@@ -28,12 +28,8 @@ module.exports = async (req, res) => {
 
     const body = req.body || {};
 
-    // 1. Trường hợp nút Xác nhận từ nhân viên
-    if (body.action === 'confirm' || body.action === 'confirmRegistration') {
-      if (!body.registrationId) {
-        return res.status(400).json({ status: 'error', message: 'Thiếu mã đăng ký registrationId.' });
-      }
-
+    // 1. Trường hợp các Hành động Quản trị & Xác nhận từ nhân viên
+    if (body.action) {
       const response = await fetch(scriptUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },

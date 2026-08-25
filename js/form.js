@@ -106,27 +106,43 @@ function renderSlotsGrid() {
       const slotId = `${day.key}_${shift.key}`;
       const slotLabel = shift.time ? `${day.label} (${shift.label}: ${shift.time})` : `${day.label} (${shift.label})`;
       const count = slotCounts[slotLabel] || 0;
+
+      // Kiểm tra xem Ca học có bị Admin khóa không
+      const matchedDrop = (state.dropdownSlots || []).find(ds => ds.day === day.label && (ds.shift === shift.label || ds.label.includes(shift.label)));
+      const isAdminLocked = matchedDrop && matchedDrop.status && (matchedDrop.status.includes('khóa') || matchedDrop.status.includes('tắt'));
+
       const isFull = count >= maxCapacity;
+      const isDisabled = isFull || isAdminLocked;
       const isSelected = state.selectedSlots.some(s => s.id === slotId || s.label === slotLabel);
 
-      if (isFull && isSelected) {
+      if (isDisabled && isSelected) {
         const idx = state.selectedSlots.findIndex(s => s.id === slotId || s.label === slotLabel);
         if (idx > -1) state.selectedSlots.splice(idx, 1);
       }
 
       const slotItem = document.createElement('div');
-      slotItem.className = `slot-item ${isFull ? 'full disabled' : ''} ${isSelected && !isFull ? 'selected' : ''}`;
+      slotItem.className = `slot-item ${isDisabled ? 'full disabled' : ''} ${isSelected && !isDisabled ? 'selected' : ''}`;
       slotItem.dataset.id = slotId;
       slotItem.dataset.label = slotLabel;
       slotItem.dataset.count = count;
 
+      let badgeText = `${count}/${maxCapacity} người`;
+      if (isAdminLocked) badgeText = 'ĐÃ KHÓA';
+      else if (isFull) badgeText = 'ĐÃ ĐẦY (9/9)';
+
       slotItem.innerHTML = `
         <span class="slot-name" style="font-weight: 700; font-size: 0.88rem; display: block; margin-bottom: 2px;">${shift.label}</span>
         ${shift.time ? `<span class="slot-time">${shift.time}</span>` : ''}
-        <span class="slot-capacity-badge">${isFull ? 'ĐÃ ĐẦY (9/9)' : `${count}/${maxCapacity} người`}</span>
+        <span class="slot-capacity-badge" style="${isAdminLocked ? 'background: rgba(239, 68, 68, 0.2); color: var(--danger); font-weight: 700;' : ''}">${badgeText}</span>
       `;
 
       slotItem.addEventListener('click', () => {
+        if (isAdminLocked) {
+          if (typeof showToast === 'function') {
+            showToast(`Ca học "${slotLabel}" hiện tại đã bị Quản trị viên KHÓA!`, 'error');
+          }
+          return;
+        }
         if (isFull) {
           if (typeof showToast === 'function') {
             showToast(`Ca học "${slotLabel}" đã đủ tối đa 9/9 người đăng ký!`, 'error');

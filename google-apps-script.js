@@ -137,15 +137,12 @@ function doGet(e) {
         const shiftTime = (row[2] || '').toString().trim();
         const status = (row[3] || 'Hoạt động').toString().trim();
 
-        if (status.toLowerCase().includes('khóa') || status.toLowerCase().includes('tắt')) {
-          return; // Bỏ qua ca học bị đánh dấu khóa trong sheet Dropdown
-        }
-
         const fullLabel = shiftTime ? `${dayLabel} (${shiftLabel}: ${shiftTime})` : `${dayLabel} (${shiftLabel})`;
         dropdownSlots.push({
           day: dayLabel,
           shift: shiftLabel,
           time: shiftTime,
+          status: status,
           label: fullLabel
         });
       });
@@ -166,9 +163,8 @@ function doGet(e) {
   }
 }
 
-// 3. CHIỀU GHI DỮ LIỆU (POST): Xử lý Atomic LockService chống quá tải & mất dữ liệu khi nhiều học viên đăng ký cùng lúc
+// 3. CHIỀU GHI DỮ LIỆU (POST): Xử lý Đăng ký mới, Nút Xác nhận & Quản trị Mở/Khóa ca (LockService)
 function doPost(e) {
-  // Khóa hàng đợi LockService (Chờ tối đa 10 giây để xử lý tuần tự không bị tranh chấp)
   const lock = LockService.getScriptLock();
   const hasLock = lock.tryLock(10000);
 
@@ -183,9 +179,61 @@ function doPost(e) {
 
   try {
     const sheet = getSheet(SHEET_REGISTRATIONS);
+    const dropdownSheet = getSheet(SHEET_DROPDOWN);
     const contents = JSON.parse(e.postData.contents);
 
-    // Xử lý Hành động Nút Xác nhận từ Nhân viên
+    // A. Hành động Quản trị Mở / Khóa Đơn lẻ Ca học
+    if (contents.action === 'updateSlotStatus') {
+      const targetDay = contents.day;
+      const targetShift = contents.shift;
+      const newStatus = contents.status || 'Đã khóa'; // 'Hoạt động' | 'Đã khóa'
+
+      const dropData = dropdownSheet.getDataRange().getValues();
+      let found = false;
+
+      for (let i = 1; i < dropData.length; i++) {
+        const dayVal = (dropData[i][0] || '').toString().trim();
+        const shiftVal = (dropData[i][1] || '').toString().trim();
+        if (dayVal === targetDay && shiftVal === targetShift) {
+          dropdownSheet.getRange(i + 1, 4).setValue(newStatus);
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        // Thêm dòng mới nếu chưa có
+        dropdownSheet.appendRow([targetDay, targetShift, '', newStatus]);
+      }
+
+      return ContentService
+        .createTextOutput(JSON.stringify({
+          status: 'success',
+          message: `Đã cập nhật trạng thái ca học ${targetDay} (${targetShift}) sang "${newStatus}".`
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // B. Hành động Quản trị Mở / Khóa Tất cả 7 ngày & Ca học
+    if (contents.action === 'toggleAllSlots') {
+      const newStatus = contents.status || 'Hoạt động';
+      const dropData = dropdownSheet.getDataRange().getValues();
+
+      if (dropData && dropData.length > 1) {
+        for (let i = 1; i < dropData.length; i++) {
+          dropdownSheet.getRange(i + 1, 4).setValue(newStatus);
+        }
+      }
+
+      return ContentService
+        .createTextOutput(JSON.stringify({
+          status: 'success',
+          message: `Đã cập nhật trạng thái tất cả ca học sang "${newStatus}".`
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // C. Xử lý Hành động Nút Xác nhận từ Nhân viên
     if (contents.action === 'confirm' || contents.action === 'confirmRegistration') {
       const regId = contents.registrationId;
       const data = sheet.getDataRange().getValues();
