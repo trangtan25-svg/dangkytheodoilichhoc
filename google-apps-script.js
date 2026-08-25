@@ -182,6 +182,23 @@ function doPost(e) {
     const dropdownSheet = getSheet(SHEET_DROPDOWN);
     const contents = JSON.parse(e.postData.contents);
 
+    // D. Hành động Thêm Khung giờ / Ca học mới vào sheet Dropdown
+    if (contents.action === 'addDropdownSlot') {
+      const newDay = contents.day || 'Thứ 2';
+      const newShift = contents.shift || 'Khung giờ mới';
+      const newTime = contents.time || '';
+      const newStatus = 'Hoạt động';
+
+      dropdownSheet.appendRow([newDay, newShift, newTime, newStatus]);
+
+      return ContentService
+        .createTextOutput(JSON.stringify({
+          status: 'success',
+          message: `Đã thêm thành công ca học "${newDay} (${newShift}${newTime ? ': ' + newTime : ''})" vào trang tính Dropdown!`
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     // A. Hành động Quản trị Mở / Khóa Đơn lẻ Ca học
     if (contents.action === 'updateSlotStatus') {
       const targetDay = contents.day;

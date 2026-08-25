@@ -173,7 +173,36 @@ function setupAdminEventListeners() {
   const openAllBtn = document.getElementById('openAllSlotsBtn');
   const lockAllBtn = document.getElementById('lockAllSlotsBtn');
   const refreshAdminBtn = document.getElementById('refreshAdminSlotsBtn');
+  const subNavBtns = document.querySelectorAll('.admin-subnav-btn');
+  const addSlotForm = document.getElementById('addDropdownSlotForm');
 
+  // Chuyển Sub-Pane trong Tab Quản trị
+  subNavBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetPaneId = btn.dataset.subpane;
+      
+      subNavBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      document.querySelectorAll('.admin-subpane').forEach(pane => {
+        if (pane.id === targetPaneId) {
+          pane.classList.remove('d-none');
+          pane.classList.add('active');
+        } else {
+          pane.classList.add('d-none');
+          pane.classList.remove('active');
+        }
+      });
+
+      if (targetPaneId === 'admin-pane-slots') {
+        renderAdminSlotsGrid();
+      } else if (targetPaneId === 'admin-pane-tracker' && typeof renderScheduleList === 'function') {
+        renderScheduleList();
+      }
+    });
+  });
+
+  // Nút Mở / Khóa tất cả
   if (openAllBtn) {
     openAllBtn.addEventListener('click', () => toggleAllSlotsStatus('Hoạt động'));
   }
@@ -190,6 +219,75 @@ function setupAdminEventListeners() {
       renderAdminSlotsGrid();
       if (typeof showToast === 'function') {
         showToast('Đã làm mới dữ liệu quản trị!', 'info');
+      }
+    });
+  }
+
+  // Form Thêm Ca học mới vào Sheet Dropdown
+  if (addSlotForm) {
+    addSlotForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const day = document.getElementById('newSlotDay').value;
+      const shift = document.getElementById('newSlotShift').value.trim();
+      const time = document.getElementById('newSlotTime').value.trim();
+
+      if (!day || !shift) {
+        if (typeof showToast === 'function') showToast('Vui lòng nhập Thứ và Tên ca học!', 'error');
+        return;
+      }
+
+      const submitBtn = document.getElementById('addSlotSubmitBtn');
+      const btnText = submitBtn.querySelector('.btn-text');
+      const btnSpinner = submitBtn.querySelector('.btn-spinner');
+
+      btnText.classList.add('d-none');
+      btnSpinner.classList.remove('d-none');
+      submitBtn.disabled = true;
+
+      try {
+        const res = await fetch(CONFIG.API.REGISTER, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'addDropdownSlot',
+            day: day,
+            shift: shift,
+            time: time
+          })
+        });
+
+        const result = await res.json();
+        if (result && result.status === 'success') {
+          if (typeof showToast === 'function') {
+            showToast(result.message || 'Đã thêm ca học mới thành công!', 'success');
+          }
+
+          addSlotForm.reset();
+
+          // Re-fetch and update state
+          if (typeof fetchScheduleData === 'function') {
+            await fetchScheduleData();
+          }
+
+          // Switch to Admin Slots view
+          const slotsSubNavBtn = document.querySelector('.admin-subnav-btn[data-subpane="admin-pane-slots"]');
+          if (slotsSubNavBtn) slotsSubNavBtn.click();
+
+        } else {
+          if (typeof showToast === 'function') {
+            showToast(result.message || 'Thêm ca học thất bại.', 'error');
+          }
+        }
+      } catch (err) {
+        console.error('Add slot error:', err);
+        if (typeof showToast === 'function') {
+          showToast('Lỗi kết nối khi thêm ca học.', 'error');
+        }
+      } finally {
+        btnText.classList.remove('d-none');
+        btnSpinner.classList.add('d-none');
+        submitBtn.disabled = false;
       }
     });
   }

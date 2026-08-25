@@ -41,11 +41,8 @@
         <button class="nav-btn active" data-tab="tab-register">
           <i class="fa-solid fa-pen-to-square"></i> Đăng ký Lịch học
         </button>
-        <button class="nav-btn" data-tab="tab-tracker">
-          <i class="fa-solid fa-clock-rotate-left"></i> Theo dõi Lịch học
-        </button>
         <button class="nav-btn" data-tab="tab-admin">
-          <i class="fa-solid fa-sliders"></i> Quản trị Lịch học
+          <i class="fa-solid fa-user-shield"></i> Quản trị Lịch học
         </button>
       </nav>
 
@@ -207,76 +204,142 @@
       </div>
     </section>
 
-    <!-- TAB 2: TRA CỨU & THEO DÕI LỊCH HỌC -->
-    <section id="tab-tracker" class="tab-pane">
-      <div class="hero-banner compact">
-        <h1 class="hero-title">Tra cứu & Theo dõi Lịch học</h1>
-        <p class="hero-desc">Dữ liệu được cập nhật 2 chiều từ Google Sheet chính thức (ID: <code>1bv1twT1xlmRYWbEI3uzlEV-te5-pbtm5qIw7cqJa6HA</code>)</p>
-      </div>
-
-      <div class="tracker-toolbar card">
-        <div class="search-box">
-          <i class="fa-solid fa-magnifying-glass search-icon"></i>
-          <input type="text" id="searchInput" placeholder="Nhập Số điện thoại, Email hoặc Họ tên để tra cứu...">
-          <button class="btn btn-secondary" id="searchBtn">Tra cứu</button>
-        </div>
-
-        <div class="filter-tabs">
-          <button class="filter-btn active" data-filter="all">Tất cả (<span id="countAll">0</span>)</button>
-          <button class="filter-btn" data-filter="Chờ xác nhận">Chờ duyệt (<span id="countPending">0</span>)</button>
-          <button class="filter-btn" data-filter="Đã xác nhận">Đã xác nhận (<span id="countConfirmed">0</span>)</button>
-        </div>
-
-        <button class="btn btn-outline" id="refreshScheduleBtn" title="Tải lại từ Google Sheet">
-          <i class="fa-solid fa-rotate-right"></i> Làm mới
-        </button>
-
-        <div style="display: flex; gap: 8px; margin-left: auto;">
-          <button class="btn btn-outline active" id="viewModeGridBtn" title="Xem danh sách ca học theo Thứ">
-            <i class="fa-solid fa-calendar-days"></i> Xem theo Thứ & Ca
-          </button>
-          <button class="btn btn-outline" id="viewModeCardsBtn" title="Xem danh sách học viên dạng thẻ">
-            <i class="fa-solid fa-users"></i> Thẻ Học Viên
-          </button>
-        </div>
-      </div>
-
-      <!-- Schedule Results List -->
-      <div class="schedule-results-grid" id="scheduleResultsGrid">
-        <!-- Rendered by Javascript -->
-      </div>
-    </section>
-
-    <!-- TAB 3: QUẢN TRỊ NGÀY HỌC & GIỜ HỌC -->
+    <!-- TAB 2: QUẢN TRỊ LỊCH HỌC (TÍCH HỢP BẢO MẬT MẬT KHẨU 12345) -->
     <section id="tab-admin" class="tab-pane">
       <div class="hero-banner compact" style="background: linear-gradient(135deg, rgba(79, 70, 229, 0.15), rgba(16, 185, 129, 0.15)); border: 1px solid rgba(79, 70, 229, 0.2);">
-        <h1 class="hero-title"><i class="fa-solid fa-sliders text-primary"></i> Quản trị Ngày & Ca Học (Texac Center)</h1>
-        <p class="hero-desc">Mở hoặc Khóa tùy chọn các ngày học và khung giờ học trong tuần. Mọi thay đổi sẽ tự động khóa hoặc mở ô đăng ký trên website và đồng bộ 2 chiều về Google Sheet.</p>
+        <h1 class="hero-title"><i class="fa-solid fa-user-shield text-primary"></i> Quản trị Lịch học (Texac Center)</h1>
+        <p class="hero-desc">Theo dõi danh sách học viên, duyệt đăng ký, quản lý Mở/Khóa ca học và thêm khung giờ học mới vào Google Sheet.</p>
       </div>
 
-      <div class="tracker-toolbar card" style="margin-bottom: 24px;">
-        <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; width: 100%;">
-          <button class="btn btn-success" id="openAllSlotsBtn">
-            <i class="fa-solid fa-lock-open"></i> Mở tất cả 7 Ngày (Cả 2 khung giờ)
+      <!-- Admin Sub-Navigation Pills -->
+      <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;" id="adminSubNav">
+        <button class="btn btn-outline active admin-subnav-btn" data-subpane="admin-pane-tracker">
+          <i class="fa-solid fa-users text-primary"></i> 1. Theo dõi & Duyệt Học Viên
+        </button>
+        <button class="btn btn-outline admin-subnav-btn" data-subpane="admin-pane-slots">
+          <i class="fa-solid fa-sliders text-warning"></i> 2. Quản lý Mở / Khóa Ca học
+        </button>
+        <button class="btn btn-outline admin-subnav-btn" data-subpane="admin-pane-addslot">
+          <i class="fa-solid fa-circle-plus text-success"></i> 3. Thêm Ca Học Mới (Dropdown)
+        </button>
+      </div>
+
+      <!-- SUB-PANE 1: THEO DÕI & DUYỆT HỌC VIÊN -->
+      <div id="admin-pane-tracker" class="admin-subpane active">
+        <div class="tracker-toolbar card">
+          <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input type="text" id="searchInput" placeholder="Nhập Số điện thoại, Email hoặc Họ tên để tra cứu...">
+            <button class="btn btn-secondary" id="searchBtn">Tra cứu</button>
+          </div>
+
+          <div class="filter-tabs">
+            <button class="filter-btn active" data-filter="all">Tất cả (<span id="countAll">0</span>)</button>
+            <button class="filter-btn" data-filter="Chờ xác nhận">Chờ duyệt (<span id="countPending">0</span>)</button>
+            <button class="filter-btn" data-filter="Đã xác nhận">Đã xác nhận (<span id="countConfirmed">0</span>)</button>
+          </div>
+
+          <button class="btn btn-outline" id="refreshScheduleBtn" title="Tải lại từ Google Sheet">
+            <i class="fa-solid fa-rotate-right"></i> Làm mới
           </button>
-          <button class="btn btn-danger" id="lockAllSlotsBtn">
-            <i class="fa-solid fa-lock"></i> Khóa tất cả các Ca học
-          </button>
-          <button class="btn btn-outline" id="refreshAdminSlotsBtn" style="margin-left: auto;">
-            <i class="fa-solid fa-rotate-right"></i> Làm mới Quản trị
-          </button>
+
+          <div style="display: flex; gap: 8px; margin-left: auto;">
+            <button class="btn btn-outline active" id="viewModeGridBtn" title="Xem danh sách ca học theo Thứ">
+              <i class="fa-solid fa-calendar-days"></i> Xem theo Thứ & Ca
+            </button>
+            <button class="btn btn-outline" id="viewModeCardsBtn" title="Xem danh sách học viên dạng thẻ">
+              <i class="fa-solid fa-users"></i> Thẻ Học Viên
+            </button>
+          </div>
+        </div>
+
+        <!-- Schedule Results Grid / Cards -->
+        <div class="schedule-results-grid" id="scheduleResultsGrid">
+          <!-- Rendered by JS -->
         </div>
       </div>
 
-      <!-- Admin Slots Matrix Grid -->
-      <div class="card" style="padding: 24px;">
-        <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
-          <i class="fa-solid fa-calendar-check text-primary"></i> Trạng thái Mở / Khóa Ca học tuần này
-        </h3>
-        <div class="slots-matrix-container">
-          <div class="slots-grid" id="adminSlotsGrid">
-            <!-- Rendered by Javascript -->
+      <!-- SUB-PANE 2: QUẢN LÝ MỞ / KHÓA CA HỌC -->
+      <div id="admin-pane-slots" class="admin-subpane d-none">
+        <div class="tracker-toolbar card" style="margin-bottom: 20px;">
+          <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; width: 100%;">
+            <button class="btn btn-success" id="openAllSlotsBtn">
+              <i class="fa-solid fa-lock-open"></i> Mở tất cả 7 Ngày (Cả 2 khung giờ)
+            </button>
+            <button class="btn btn-danger" id="lockAllSlotsBtn">
+              <i class="fa-solid fa-lock"></i> Khóa tất cả các Ca học
+            </button>
+            <button class="btn btn-outline" id="refreshAdminSlotsBtn" style="margin-left: auto;">
+              <i class="fa-solid fa-rotate-right"></i> Làm mới Quản trị
+            </button>
           </div>
+        </div>
+
+        <div class="card" style="padding: 24px;">
+          <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-calendar-check text-primary"></i> Trạng thái Mở / Khóa Ca học tuần này
+          </h3>
+          <div class="slots-matrix-container">
+            <div class="slots-grid" id="adminSlotsGrid">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUB-PANE 3: THÊM CA HỌC MỚI VÀO DROPDOWN -->
+      <div id="admin-pane-addslot" class="admin-subpane d-none">
+        <div class="card" style="padding: 28px; max-width: 700px; margin: 0 auto;">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px dashed var(--border-color);">
+            <div style="width: 46px; height: 46px; border-radius: 50%; background: rgba(16, 185, 129, 0.15); color: var(--success); display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
+              <i class="fa-solid fa-circle-plus"></i>
+            </div>
+            <div>
+              <h3 style="font-size: 1.2rem; font-weight: 700; color: var(--text-main);">Thêm Khung giờ / Ca học mới vào Sheet Dropdown</h3>
+              <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">Cấu hình ca học mới sẽ tự động xuất hiện trên Form đăng ký của Học viên và đồng bộ 2 chiều sang Google Sheet.</p>
+            </div>
+          </div>
+
+          <form id="addDropdownSlotForm">
+            <div class="form-group" style="margin-bottom: 16px;">
+              <label for="newSlotDay">Chọn Thứ / Ngày <span class="required">*</span></label>
+              <div class="select-wrapper">
+                <i class="fa-solid fa-calendar-day input-icon text-primary"></i>
+                <select id="newSlotDay" name="newSlotDay" required>
+                  <option value="Thứ 2">Thứ 2</option>
+                  <option value="Thứ 3">Thứ 3</option>
+                  <option value="Thứ 4">Thứ 4</option>
+                  <option value="Thứ 5">Thứ 5</option>
+                  <option value="Thứ 6">Thứ 6</option>
+                  <option value="Thứ 7">Thứ 7</option>
+                  <option value="Chủ Nhật">Chủ Nhật</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 16px;">
+              <label for="newSlotShift">Tên Ca / Khung giờ <span class="required">*</span></label>
+              <div class="input-wrapper">
+                <i class="fa-solid fa-clock input-icon text-warning"></i>
+                <input type="text" id="newSlotShift" name="newSlotShift" placeholder="Ví dụ: Khung giờ 3, Ca Sáng 1, Ca Tối Muộn..." required>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 24px;">
+              <label for="newSlotTime">Khung giờ chi tiết (Tùy chọn)</label>
+              <div class="input-wrapper">
+                <i class="fa-solid fa-stopwatch input-icon"></i>
+                <input type="text" id="newSlotTime" name="newSlotTime" placeholder="Ví dụ: 08h00 - 10h00, 20h30 - 22h00...">
+              </div>
+            </div>
+
+            <div style="text-align: right;">
+              <button type="submit" class="btn btn-primary btn-lg" id="addSlotSubmitBtn">
+                <span class="btn-text"><i class="fa-solid fa-plus-circle"></i> Thêm Ca Học vào Google Sheet Dropdown</span>
+                <span class="btn-spinner d-none"><i class="fa-solid fa-spinner fa-spin"></i> Đang thêm ca học...</span>
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </section>
