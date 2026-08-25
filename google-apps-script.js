@@ -24,7 +24,7 @@ const SHEET_REGISTRATIONS = 'DangKyLichHoc';
 const SHEET_DROPDOWN = 'quanlykhunggio';
 const MAX_SLOT_CAPACITY = 9;
 
-// 1. Helper lấy trang tính theo tên (Truy xuất trực tiếp theo Spreadsheet ID để tối ưu tốc độ)
+// 1. Helper lấy trang tính theo tên (Truy xuất thông minh theo Spreadsheet ID & Tự nhận diện tên sheet)
 function getSheet(sheetName) {
   let ss;
   try {
@@ -35,6 +35,23 @@ function getSheet(sheetName) {
 
   let sheet = ss.getSheetByName(sheetName);
 
+  // Nếu tìm chính xác chưa thấy, tìm kiếm không phân biệt hoa/thường hay khoảng trắng
+  if (!sheet) {
+    const sheets = ss.getSheets();
+    const targetNorm = sheetName.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    for (let i = 0; i < sheets.length; i++) {
+      const sName = sheets[i].getName();
+      const sNorm = sName.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      if (sNorm === targetNorm || 
+          (sheetName === SHEET_DROPDOWN && (sNorm.includes('khunggio') || sNorm.includes('dropdown')))) {
+        sheet = sheets[i];
+        break;
+      }
+    }
+  }
+
   if (!sheet) {
     if (sheetName === SHEET_REGISTRATIONS) {
       sheet = ss.getSheetByName('Sheet1') || ss.getSheetByName('Trang tính1') || ss.getSheets()[0];
@@ -44,14 +61,7 @@ function getSheet(sheetName) {
         sheet = ss.insertSheet(SHEET_REGISTRATIONS);
       }
     } else if (sheetName === SHEET_DROPDOWN) {
-      // Tìm xem có sheet Dropdown cũ không để đổi tên sang quanlykhunggio
-      const oldSheet = ss.getSheetByName('Dropdown');
-      if (oldSheet) {
-        try { oldSheet.setName(SHEET_DROPDOWN); sheet = oldSheet; } catch (e) {}
-      }
-      if (!sheet) {
-        sheet = ss.insertSheet(SHEET_DROPDOWN);
-      }
+      sheet = ss.insertSheet(SHEET_DROPDOWN);
     }
   }
 
@@ -98,7 +108,7 @@ function getSheet(sheetName) {
   return sheet;
 }
 
-// 2. CHIỀU ĐỌC DỮ LIỆU (GET): Trả về ĐỒNG THỜI cả Đăng ký học viên & Danh sách Ca học từ sheet Dropdown
+// 2. CHIỀU ĐỌC DỮ LIỆU (GET): Trả về ĐỒNG THỜI cả Đăng ký học viên & Danh sách Ca học từ sheet quanlykhunggio
 function doGet(e) {
   try {
     // A. Đọc dữ liệu học viên đăng ký
@@ -207,39 +217,45 @@ function doPost(e) {
       return ContentService
         .createTextOutput(JSON.stringify({
           status: 'success',
-          message: `Đã thêm thành công ca học "${newDay} (${newShift}${newTime ? ': ' + newTime : ''})" vào trang tính Dropdown!`
+          message: `Đã thêm thành công ca học "${newDay} (${newShift}${newTime ? ': ' + newTime : ''})" vào sheet quanlykhunggio!`
         }))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    // A. Hành động Quản trị Mở / Khóa Đơn lẻ Ca học
+    // A. Hành động Quản trị Mở / Khóa Đơn lẻ Ca học (Khớp linh hoạt Thứ và Tên Ca)
     if (contents.action === 'updateSlotStatus') {
-      const targetDay = contents.day;
-      const targetShift = contents.shift;
+      const targetDay = (contents.day || '').toString().trim().toLowerCase();
+      const targetShift = (contents.shift || '').toString().trim().toLowerCase();
       const newStatus = contents.status || 'Đã khóa'; // 'Hoạt động' | 'Đã khóa'
 
       const dropData = dropdownSheet.getDataRange().getValues();
-      let found = false;
+      let foundIndex = -1;
 
       for (let i = 1; i < dropData.length; i++) {
-        const dayVal = (dropData[i][0] || '').toString().trim();
-        const shiftVal = (dropData[i][1] || '').toString().trim();
-        if (dayVal === targetDay && shiftVal === targetShift) {
-          dropdownSheet.getRange(i + 1, 4).setValue(newStatus);
-          found = true;
+        const dayVal = (dropData[i][0] || '').toString().trim().toLowerCase();
+        const shiftVal = (dropData[i][1] || '').toString().trim().toLowerCase();
+
+        const dayMatch = (dayVal === targetDay) || dayVal.includes(targetDay) || targetDay.includes(dayVal);
+        const shiftMatch = (shiftVal === targetShift) || shiftVal.includes(targetShift) || targetShift.includes(shiftVal);
+
+        if (dayMatch && shiftMatch) {
+          foundIndex = i + 1;
           break;
         }
       }
 
-      if (!found) {
-        // Thêm dòng mới nếu chưa có
-        dropdownSheet.appendRow([targetDay, targetShift, '', newStatus]);
+      if (foundIndex > -1) {
+        // Ghi trực tiếp giá trị mới vào Cột 4 (Mô Tả / Trạng Thái)
+        dropdownSheet.getRange(foundIndex, 4).setValue(newStatus);
+      } else {
+        // Nếu không tìm thấy dòng khớp thì chèn dòng mới
+        dropdownSheet.appendRow([contents.day, contents.shift, '', newStatus]);
       }
 
       return ContentService
         .createTextOutput(JSON.stringify({
           status: 'success',
-          message: `Đã cập nhật trạng thái ca học ${targetDay} (${targetShift}) sang "${newStatus}".`
+          message: `Đã cập nhật trạng thái ca học ${contents.day} (${contents.shift}) sang "${newStatus}".`
         }))
         .setMimeType(ContentService.MimeType.JSON);
     }
