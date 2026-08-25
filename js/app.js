@@ -31,8 +31,9 @@ function initNavigationTabs() {
       else pane.classList.remove('active');
     });
 
-    if (targetTabId === 'tab-admin' && typeof renderAdminSlotsGrid === 'function') {
-      renderAdminSlotsGrid();
+    if (targetTabId === 'tab-admin') {
+      if (typeof renderAdminSlotsGrid === 'function') renderAdminSlotsGrid();
+      if (typeof renderExistingSlotsTable === 'function') renderExistingSlotsTable();
     }
   }
 

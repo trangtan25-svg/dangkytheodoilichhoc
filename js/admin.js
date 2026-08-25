@@ -1,6 +1,6 @@
 /**
  * ADMIN SCHEDULE MANAGER MODULE (Texac Center Schedule)
- * Mở / Khóa các ngày học và ca học tùy chọn trong tuần
+ * Mở / Khóa, Thêm, Sửa và Xóa các khung giờ học trong tuần
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -13,7 +13,22 @@ function renderAdminSlotsGrid() {
 
   container.innerHTML = '';
   const daysList = CONFIG.DAYS || [];
-  const shiftsList = CONFIG.SHIFTS || [{ key: 'KG1', label: 'Khung giờ 1' }, { key: 'KG2', label: 'Khung giờ 2' }];
+
+  // Tổng hợp động danh sách tất cả Khung Giờ (bao gồm cả các khung giờ mới được thêm)
+  const shiftsList = [];
+  const seenShifts = new Set();
+
+  (CONFIG.SHIFTS || []).forEach(s => {
+    seenShifts.add(s.label);
+    shiftsList.push(s);
+  });
+
+  (state.dropdownSlots || []).forEach(ds => {
+    if (ds.shift && !seenShifts.has(ds.shift)) {
+      seenShifts.add(ds.shift);
+      shiftsList.push({ key: ds.shift, label: ds.shift, time: ds.time || '' });
+    }
+  });
 
   daysList.forEach(day => {
     const dayCol = document.createElement('div');
@@ -70,6 +85,84 @@ function renderAdminSlotsGrid() {
   });
 }
 
+function renderExistingSlotsTable() {
+  const tbody = document.getElementById('existingSlotsTbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = '';
+  const slots = state.dropdownSlots || [];
+
+  if (slots.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" style="padding: 20px; text-align: center; color: var(--text-muted);">
+          Chưa có khung giờ nào được cấu hình trong sheet quanlykhunggio.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  slots.forEach(s => {
+    const tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid var(--border-color)';
+
+    const isLocked = s.status && (s.status.includes('khóa') || s.status.includes('tắt'));
+
+    tr.innerHTML = `
+      <td style="padding: 12px; font-weight: 600;">${s.day || ''}</td>
+      <td style="padding: 12px; font-weight: 700; color: var(--primary);">${s.shift || s.label || ''}</td>
+      <td style="padding: 12px; color: var(--text-muted);">${s.time || '—'}</td>
+      <td style="padding: 12px;">
+        <span class="badge ${isLocked ? 'danger' : 'success'}" style="padding: 4px 8px; font-size: 0.78rem; border-radius: 4px;">
+          ${isLocked ? '<i class="fa-solid fa-lock"></i> Đã khóa' : '<i class="fa-solid fa-check"></i> Hoạt động'}
+        </span>
+      </td>
+      <td style="padding: 12px; text-align: center;">
+        <div style="display: flex; gap: 6px; justify-content: center;">
+          <button class="btn btn-sm btn-outline edit-slot-btn" data-day="${s.day}" data-shift="${s.shift}" data-time="${s.time || ''}" data-status="${s.status || 'Hoạt động'}" style="padding: 4px 10px; font-size: 0.78rem;">
+            <i class="fa-solid fa-pen-to-square text-primary"></i> Sửa
+          </button>
+          <button class="btn btn-sm btn-danger delete-slot-btn" data-day="${s.day}" data-shift="${s.shift}" style="padding: 4px 10px; font-size: 0.78rem;">
+            <i class="fa-solid fa-trash-can"></i> Xóa
+          </button>
+        </div>
+      </td>
+    `;
+
+    tbody.appendChild(tr);
+  });
+
+  // Gắn sự kiện Sửa ca
+  tbody.querySelectorAll('.edit-slot-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      openEditSlotModal(btn.dataset.day, btn.dataset.shift, btn.dataset.time, btn.dataset.status);
+    });
+  });
+
+  // Gắn sự kiện Xóa ca
+  tbody.querySelectorAll('.delete-slot-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      deleteSingleSlot(btn.dataset.day, btn.dataset.shift, btn);
+    });
+  });
+}
+
+function openEditSlotModal(day, shift, time, status) {
+  const modal = document.getElementById('editSlotModal');
+  if (!modal) return;
+
+  document.getElementById('editOldDay').value = day;
+  document.getElementById('editOldShift').value = shift;
+
+  document.getElementById('editNewDay').value = day;
+  document.getElementById('editNewShift').value = shift;
+  document.getElementById('editNewTime').value = time;
+  document.getElementById('editNewStatus').value = status.includes('khóa') ? 'Đã khóa' : 'Hoạt động';
+
+  modal.classList.remove('d-none');
+}
+
 async function updateSingleSlotStatus(day, shift, targetStatus, btnElement) {
   if (btnElement) {
     btnElement.disabled = true;
@@ -103,20 +196,63 @@ async function updateSingleSlotStatus(day, shift, targetStatus, btnElement) {
       }
 
       renderAdminSlotsGrid();
-      if (typeof renderSlotsGrid === 'function') {
-        renderSlotsGrid();
-      }
+      renderExistingSlotsTable();
+      if (typeof renderSlotsGrid === 'function') renderSlotsGrid();
+
     } else {
-      if (typeof showToast === 'function') {
-        showToast(result.message || 'Cập nhật trạng thái thất bại.', 'error');
-      }
+      if (typeof showToast === 'function') showToast(result.message || 'Cập nhật thất bại.', 'error');
       if (btnElement) btnElement.disabled = false;
     }
   } catch (err) {
     console.error('Update slot error:', err);
-    if (typeof showToast === 'function') {
-      showToast('Lỗi kết nối máy chủ.', 'error');
+    if (typeof showToast === 'function') showToast('Lỗi kết nối máy chủ.', 'error');
+    if (btnElement) btnElement.disabled = false;
+  }
+}
+
+async function deleteSingleSlot(day, shift, btnElement) {
+  if (!confirm(`Bạn có chắc chắn muốn XÓA ca học "${day} - ${shift}" khỏi Google Sheet quanlykhunggio?`)) {
+    return;
+  }
+
+  if (btnElement) {
+    btnElement.disabled = true;
+    btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>...';
+  }
+
+  try {
+    const res = await fetch(CONFIG.API.REGISTER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'deleteDropdownSlot',
+        day: day,
+        shift: shift
+      })
+    });
+
+    const result = await res.json();
+    if (result && result.status === 'success') {
+      if (typeof showToast === 'function') {
+        showToast(`Đã xóa ca học "${day} (${shift})" thành công!`, 'success');
+      }
+
+      // Re-fetch state and update UI
+      if (typeof fetchScheduleData === 'function') {
+        await fetchScheduleData();
+      }
+
+      renderAdminSlotsGrid();
+      renderExistingSlotsTable();
+      if (typeof renderSlotsGrid === 'function') renderSlotsGrid();
+
+    } else {
+      if (typeof showToast === 'function') showToast(result.message || 'Xóa ca học thất bại.', 'error');
+      if (btnElement) btnElement.disabled = false;
     }
+  } catch (err) {
+    console.error('Delete slot error:', err);
+    if (typeof showToast === 'function') showToast('Lỗi kết nối khi xóa ca học.', 'error');
     if (btnElement) btnElement.disabled = false;
   }
 }
@@ -144,25 +280,20 @@ async function toggleAllSlotsStatus(targetStatus) {
         showToast(`Đã ${targetStatus === 'Hoạt động' ? 'MỞ TẤT CẢ' : 'KHÓA TẤT CẢ'} ca học 7 ngày trong tuần!`, 'success');
       }
 
-      // Update all local dropdown slots
       (state.dropdownSlots || []).forEach(ds => {
         ds.status = targetStatus;
       });
 
       renderAdminSlotsGrid();
-      if (typeof renderSlotsGrid === 'function') {
-        renderSlotsGrid();
-      }
+      renderExistingSlotsTable();
+      if (typeof renderSlotsGrid === 'function') renderSlotsGrid();
+
     } else {
-      if (typeof showToast === 'function') {
-        showToast(result.message || 'Thao tác thất bại.', 'error');
-      }
+      if (typeof showToast === 'function') showToast(result.message || 'Thao tác thất bại.', 'error');
     }
   } catch (err) {
     console.error('Toggle all error:', err);
-    if (typeof showToast === 'function') {
-      showToast('Lỗi kết nối khi cập nhật ca học.', 'error');
-    }
+    if (typeof showToast === 'function') showToast('Lỗi kết nối khi cập nhật ca học.', 'error');
   } finally {
     if (openBtn) openBtn.disabled = false;
     if (lockBtn) lockBtn.disabled = false;
@@ -173,8 +304,11 @@ function setupAdminEventListeners() {
   const openAllBtn = document.getElementById('openAllSlotsBtn');
   const lockAllBtn = document.getElementById('lockAllSlotsBtn');
   const refreshAdminBtn = document.getElementById('refreshAdminSlotsBtn');
+  const refreshExistingSlotsBtn = document.getElementById('refreshExistingSlotsBtn');
   const subNavBtns = document.querySelectorAll('.admin-subnav-btn');
   const addSlotForm = document.getElementById('addDropdownSlotForm');
+  const editSlotForm = document.getElementById('editSlotForm');
+  const editSlotCancelBtn = document.getElementById('editSlotCancelBtn');
 
   // Chuyển Sub-Pane trong Tab Quản trị
   subNavBtns.forEach(btn => {
@@ -198,32 +332,33 @@ function setupAdminEventListeners() {
         renderAdminSlotsGrid();
       } else if (targetPaneId === 'admin-pane-tracker' && typeof renderScheduleList === 'function') {
         renderScheduleList();
+      } else if (targetPaneId === 'admin-pane-addslot') {
+        renderExistingSlotsTable();
       }
     });
   });
 
-  // Nút Mở / Khóa tất cả
-  if (openAllBtn) {
-    openAllBtn.addEventListener('click', () => toggleAllSlotsStatus('Hoạt động'));
-  }
-
-  if (lockAllBtn) {
-    lockAllBtn.addEventListener('click', () => toggleAllSlotsStatus('Đã khóa'));
-  }
+  if (openAllBtn) openAllBtn.addEventListener('click', () => toggleAllSlotsStatus('Hoạt động'));
+  if (lockAllBtn) lockAllBtn.addEventListener('click', () => toggleAllSlotsStatus('Đã khóa'));
 
   if (refreshAdminBtn) {
-    refreshAdminBtn.addEventListener('click', () => {
-      if (typeof fetchScheduleData === 'function') {
-        fetchScheduleData();
-      }
+    refreshAdminBtn.addEventListener('click', async () => {
+      if (typeof fetchScheduleData === 'function') await fetchScheduleData();
       renderAdminSlotsGrid();
-      if (typeof showToast === 'function') {
-        showToast('Đã làm mới dữ liệu quản trị!', 'info');
-      }
+      renderExistingSlotsTable();
+      if (typeof showToast === 'function') showToast('Đã làm mới dữ liệu quản trị!', 'info');
     });
   }
 
-  // Form Thêm Ca học mới vào Sheet Dropdown
+  if (refreshExistingSlotsBtn) {
+    refreshExistingSlotsBtn.addEventListener('click', async () => {
+      if (typeof fetchScheduleData === 'function') await fetchScheduleData();
+      renderExistingSlotsTable();
+      if (typeof showToast === 'function') showToast('Đã làm mới danh sách ca học!', 'info');
+    });
+  }
+
+  // Form Thêm Ca học mới vào Sheet quanlykhunggio
   if (addSlotForm) {
     addSlotForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -259,35 +394,89 @@ function setupAdminEventListeners() {
 
         const result = await res.json();
         if (result && result.status === 'success') {
-          if (typeof showToast === 'function') {
-            showToast(result.message || 'Đã thêm ca học mới thành công!', 'success');
-          }
+          if (typeof showToast === 'function') showToast(result.message || 'Đã thêm ca học mới thành công!', 'success');
 
           addSlotForm.reset();
 
-          // Re-fetch and update state
-          if (typeof fetchScheduleData === 'function') {
-            await fetchScheduleData();
-          }
+          if (typeof fetchScheduleData === 'function') await fetchScheduleData();
 
-          // Switch to Admin Slots view
-          const slotsSubNavBtn = document.querySelector('.admin-subnav-btn[data-subpane="admin-pane-slots"]');
-          if (slotsSubNavBtn) slotsSubNavBtn.click();
+          renderAdminSlotsGrid();
+          renderExistingSlotsTable();
+          if (typeof renderSlotsGrid === 'function') renderSlotsGrid();
 
         } else {
-          if (typeof showToast === 'function') {
-            showToast(result.message || 'Thêm ca học thất bại.', 'error');
-          }
+          if (typeof showToast === 'function') showToast(result.message || 'Thêm ca học thất bại.', 'error');
         }
       } catch (err) {
         console.error('Add slot error:', err);
-        if (typeof showToast === 'function') {
-          showToast('Lỗi kết nối khi thêm ca học.', 'error');
-        }
+        if (typeof showToast === 'function') showToast('Lỗi kết nối khi thêm ca học.', 'error');
       } finally {
         btnText.classList.remove('d-none');
         btnSpinner.classList.add('d-none');
         submitBtn.disabled = false;
+      }
+    });
+  }
+
+  // Modal Chỉnh Sửa Ca Học
+  if (editSlotCancelBtn) {
+    editSlotCancelBtn.addEventListener('click', () => {
+      document.getElementById('editSlotModal').classList.add('d-none');
+    });
+  }
+
+  if (editSlotForm) {
+    editSlotForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const oldDay = document.getElementById('editOldDay').value;
+      const oldShift = document.getElementById('editOldShift').value;
+
+      const newDay = document.getElementById('editNewDay').value;
+      const newShift = document.getElementById('editNewShift').value.trim();
+      const newTime = document.getElementById('editNewTime').value.trim();
+      const newStatus = document.getElementById('editNewStatus').value;
+
+      const submitBtn = document.getElementById('editSlotSubmitBtn');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lưu...';
+
+      try {
+        const res = await fetch(CONFIG.API.REGISTER, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'editDropdownSlot',
+            oldDay: oldDay,
+            oldShift: oldShift,
+            newDay: newDay,
+            newShift: newShift,
+            newTime: newTime,
+            status: newStatus
+          })
+        });
+
+        const result = await res.json();
+        if (result && result.status === 'success') {
+          if (typeof showToast === 'function') showToast(result.message || 'Đã cập nhật ca học thành công!', 'success');
+
+          document.getElementById('editSlotModal').classList.add('d-none');
+
+          if (typeof fetchScheduleData === 'function') await fetchScheduleData();
+
+          renderAdminSlotsGrid();
+          renderExistingSlotsTable();
+          if (typeof renderSlotsGrid === 'function') renderSlotsGrid();
+
+        } else {
+          if (typeof showToast === 'function') showToast(result.message || 'Cập nhật thất bại.', 'error');
+        }
+      } catch (err) {
+        console.error('Edit slot error:', err);
+        if (typeof showToast === 'function') showToast('Lỗi kết nối khi lưu ca học.', 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Lưu thay đổi';
       }
     });
   }

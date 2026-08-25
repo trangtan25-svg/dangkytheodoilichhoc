@@ -247,7 +247,7 @@ function doPost(e) {
     const dropdownSheet = getSheet(SHEET_DROPDOWN);
     const contents = JSON.parse(e.postData.contents);
 
-    // A. Thêm Khung giờ / Ca học mới vào sheet quanlykhunggio
+    // A1. Thêm Khung giờ / Ca học mới vào sheet quanlykhunggio
     if (contents.action === 'addDropdownSlot') {
       const newDay = contents.day || 'Thứ 2';
       const newShift = contents.shift || 'Khung giờ mới';
@@ -260,6 +260,75 @@ function doPost(e) {
         .createTextOutput(JSON.stringify({
           status: 'success',
           message: `Đã thêm thành công ca học "${newDay} (${newShift}${newTime ? ': ' + newTime : ''})" vào sheet "${dropdownSheet.getName()}"!`
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // A2. Xóa Khung giờ / Ca học khỏi sheet quanlykhunggio
+    if (contents.action === 'deleteDropdownSlot') {
+      const targetDayNorm = removeVietnameseTones(contents.day);
+      const targetShiftNorm = removeVietnameseTones(contents.shift);
+
+      const dropData = dropdownSheet.getDataRange().getValues();
+
+      for (let i = dropData.length - 1; i >= 1; i--) {
+        const dayNorm = removeVietnameseTones(dropData[i][0]);
+        const shiftNorm = removeVietnameseTones(dropData[i][1]);
+
+        const dayMatch = (dayNorm === targetDayNorm) || dayNorm.includes(targetDayNorm) || targetDayNorm.includes(dayNorm);
+        const shiftMatch = (shiftNorm === targetShiftNorm) || shiftNorm.includes(targetShiftNorm) || targetShiftNorm.includes(shiftNorm);
+
+        if (dayMatch && shiftMatch) {
+          dropdownSheet.deleteRow(i + 1);
+        }
+      }
+
+      return ContentService
+        .createTextOutput(JSON.stringify({
+          status: 'success',
+          message: `Đã xóa thành công ca học "${contents.day} (${contents.shift})" khỏi sheet!`
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // A3. Chỉnh sửa Khung giờ / Ca học trong sheet quanlykhunggio
+    if (contents.action === 'editDropdownSlot') {
+      const oldDayNorm = removeVietnameseTones(contents.oldDay || contents.day);
+      const oldShiftNorm = removeVietnameseTones(contents.oldShift || contents.shift);
+
+      const newDay = contents.newDay || contents.day;
+      const newShift = contents.newShift || contents.shift;
+      const newTime = contents.newTime !== undefined ? contents.newTime : (contents.time || '');
+      const newStatus = contents.status || 'Hoạt động';
+
+      const dropData = dropdownSheet.getDataRange().getValues();
+      let updated = false;
+
+      for (let i = 1; i < dropData.length; i++) {
+        const dayNorm = removeVietnameseTones(dropData[i][0]);
+        const shiftNorm = removeVietnameseTones(dropData[i][1]);
+
+        const dayMatch = (dayNorm === oldDayNorm) || dayNorm.includes(oldDayNorm) || oldDayNorm.includes(dayNorm);
+        const shiftMatch = (shiftNorm === oldShiftNorm) || shiftNorm.includes(oldShiftNorm) || oldShiftNorm.includes(shiftNorm);
+
+        if (dayMatch && shiftMatch) {
+          dropdownSheet.getRange(i + 1, 1).setValue(newDay);
+          dropdownSheet.getRange(i + 1, 2).setValue(newShift);
+          dropdownSheet.getRange(i + 1, 3).setValue(newTime);
+          dropdownSheet.getRange(i + 1, 4).setValue(newStatus);
+          updated = true;
+          break;
+        }
+      }
+
+      if (!updated) {
+        dropdownSheet.appendRow([newDay, newShift, newTime, newStatus]);
+      }
+
+      return ContentService
+        .createTextOutput(JSON.stringify({
+          status: 'success',
+          message: `Đã cập nhật ca học thành "${newDay} (${newShift})"!`
         }))
         .setMimeType(ContentService.MimeType.JSON);
     }
