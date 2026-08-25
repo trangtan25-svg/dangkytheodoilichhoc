@@ -13,13 +13,7 @@ const CONFIG = {
     SCHEDULE: '/api/schedule'
   },
 
-  // Course Types & Frequency Mapping
-  STUDENT_TYPES: {
-    'Cấp tốc': ['4 buổi/tuần', '5 buổi/tuần'],
-    'Dài hạn': ['2 buổi/tuần', '3 buổi/tuần']
-  },
-
-  // Shifts / Time slots definition
+  // Shifts / Time slots definition: Khung giờ 1 & Khung giờ 2
   DAYS: [
     { key: 'T2', label: 'Thứ 2' },
     { key: 'T3', label: 'Thứ 3' },
@@ -31,10 +25,8 @@ const CONFIG = {
   ],
 
   SHIFTS: [
-    { key: 'Sang', label: 'Ca Sáng', time: '08h00 - 10h00' },
-    { key: 'Chieu', label: 'Ca Chiều', time: '14h00 - 16h00' },
-    { key: 'Toi', label: 'Ca Tối', time: '18h30 - 20h30' },
-    { key: 'Muon', label: 'Ca Tối Muộn', time: '20h30 - 22h00' }
+    { key: 'KG1', label: 'Khung giờ 1', time: '' },
+    { key: 'KG2', label: 'Khung giờ 2', time: '' }
   ]
 };
 

@@ -61,36 +61,22 @@ function getSheet(sheetName) {
       sheet.getRange("1:1").setFontWeight("bold").setBackground("#4F46E5").setFontColor("#FFFFFF");
     } else if (sheetName === SHEET_DROPDOWN) {
       sheet.appendRow(['Thứ / Ngày', 'Tên Ca', 'Thời Gian', 'Mô Tả / Trạng Thái']);
-      // Dữ liệu mẫu ban đầu cho sheet Dropdown
+      // Dữ liệu mẫu ban đầu cho sheet Dropdown: Khung giờ 1 & Khung giờ 2 cho 7 ngày trong tuần
       const defaultSlots = [
-        ['Thứ 2', 'Ca Sáng', '08h00 - 10h00', 'Hoạt động'],
-        ['Thứ 2', 'Ca Chiều', '14h00 - 16h00', 'Hoạt động'],
-        ['Thứ 2', 'Ca Tối', '18h30 - 20h30', 'Hoạt động'],
-        ['Thứ 2', 'Ca Tối Muộn', '20h30 - 22h00', 'Hoạt động'],
-        ['Thứ 3', 'Ca Sáng', '08h00 - 10h00', 'Hoạt động'],
-        ['Thứ 3', 'Ca Chiều', '14h00 - 16h00', 'Hoạt động'],
-        ['Thứ 3', 'Ca Tối', '18h30 - 20h30', 'Hoạt động'],
-        ['Thứ 3', 'Ca Tối Muộn', '20h30 - 22h00', 'Hoạt động'],
-        ['Thứ 4', 'Ca Sáng', '08h00 - 10h00', 'Hoạt động'],
-        ['Thứ 4', 'Ca Chiều', '14h00 - 16h00', 'Hoạt động'],
-        ['Thứ 4', 'Ca Tối', '18h30 - 20h30', 'Hoạt động'],
-        ['Thứ 4', 'Ca Tối Muộn', '20h30 - 22h00', 'Hoạt động'],
-        ['Thứ 5', 'Ca Sáng', '08h00 - 10h00', 'Hoạt động'],
-        ['Thứ 5', 'Ca Chiều', '14h00 - 16h00', 'Hoạt động'],
-        ['Thứ 5', 'Ca Tối', '18h30 - 20h30', 'Hoạt động'],
-        ['Thứ 5', 'Ca Tối Muộn', '20h30 - 22h00', 'Hoạt động'],
-        ['Thứ 6', 'Ca Sáng', '08h00 - 10h00', 'Hoạt động'],
-        ['Thứ 6', 'Ca Chiều', '14h00 - 16h00', 'Hoạt động'],
-        ['Thứ 6', 'Ca Tối', '18h30 - 20h30', 'Hoạt động'],
-        ['Thứ 6', 'Ca Tối Muộn', '20h30 - 22h00', 'Hoạt động'],
-        ['Thứ 7', 'Ca Sáng', '08h00 - 10h00', 'Hoạt động'],
-        ['Thứ 7', 'Ca Chiều', '14h00 - 16h00', 'Hoạt động'],
-        ['Thứ 7', 'Ca Tối', '18h30 - 20h30', 'Hoạt động'],
-        ['Thứ 7', 'Ca Tối Muộn', '20h30 - 22h00', 'Hoạt động'],
-        ['Chủ Nhật', 'Ca Sáng', '08h00 - 10h00', 'Hoạt động'],
-        ['Chủ Nhật', 'Ca Chiều', '14h00 - 16h00', 'Hoạt động'],
-        ['Chủ Nhật', 'Ca Tối', '18h30 - 20h30', 'Hoạt động'],
-        ['Chủ Nhật', 'Ca Tối Muộn', '20h30 - 22h00', 'Hoạt động']
+        ['Thứ 2', 'Khung giờ 1', '', 'Hoạt động'],
+        ['Thứ 2', 'Khung giờ 2', '', 'Hoạt động'],
+        ['Thứ 3', 'Khung giờ 1', '', 'Hoạt động'],
+        ['Thứ 3', 'Khung giờ 2', '', 'Hoạt động'],
+        ['Thứ 4', 'Khung giờ 1', '', 'Hoạt động'],
+        ['Thứ 4', 'Khung giờ 2', '', 'Hoạt động'],
+        ['Thứ 5', 'Khung giờ 1', '', 'Hoạt động'],
+        ['Thứ 5', 'Khung giờ 2', '', 'Hoạt động'],
+        ['Thứ 6', 'Khung giờ 1', '', 'Hoạt động'],
+        ['Thứ 6', 'Khung giờ 2', '', 'Hoạt động'],
+        ['Thứ 7', 'Khung giờ 1', '', 'Hoạt động'],
+        ['Thứ 7', 'Khung giờ 2', '', 'Hoạt động'],
+        ['Chủ Nhật', 'Khung giờ 1', '', 'Hoạt động'],
+        ['Chủ Nhật', 'Khung giờ 2', '', 'Hoạt động']
       ];
       defaultSlots.forEach(row => sheet.appendRow(row));
       sheet.getRange("1:1").setFontWeight("bold").setBackground("#10B981").setFontColor("#FFFFFF");
@@ -125,7 +111,7 @@ function doGet(e) {
         item['Họ và Tên'] = item['Họ và Tên'] || item['Họ tên'] || item['Full Name'] || row[1] || 'Học viên';
         item['Số Điện Thoại / Zalo'] = item['Số Điện Thoại / Zalo'] || item['Số điện thoại'] || item['SĐT'] || item['Phone'] || row[2] || 'N/A';
         item['Email'] = item['Email'] || row[3] || '';
-        item['Loại Học Viên'] = item['Loại Học Viên'] || item['Loại học viên'] || row[4] || 'Cấp tốc';
+        item['Loại Học Viên'] = item['Loại Học Viên'] || item['Loại học viên'] || row[4] || '';
         item['Số Buổi / Tuần'] = item['Số Buổi / Tuần'] || item['Số buổi'] || row[5] || '';
         item['Các Ca Học Đã Chọn'] = item['Các Ca Học Đã Chọn'] || item['Lịch học'] || item['Ca học'] || row[6] || '';
         item['Mục Tiêu Học Tập'] = item['Mục Tiêu Học Tập'] || item['Mục tiêu'] || row[7] || '';
@@ -155,7 +141,7 @@ function doGet(e) {
           return; // Bỏ qua ca học bị đánh dấu khóa trong sheet Dropdown
         }
 
-        const fullLabel = `${dayLabel} (${shiftLabel}${shiftTime ? ': ' + shiftTime : ''})`;
+        const fullLabel = shiftTime ? `${dayLabel} (${shiftLabel}: ${shiftTime})` : `${dayLabel} (${shiftLabel})`;
         dropdownSlots.push({
           day: dayLabel,
           shift: shiftLabel,

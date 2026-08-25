@@ -4,47 +4,9 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-  initDropdowns();
   renderSlotsGrid();
   setupFormEventListeners();
 });
-
-// 1. Initialize & sync dynamic dropdowns for Cấp tốc / Dài hạn
-function initDropdowns() {
-  const studentTypeSelect = document.getElementById('studentType');
-  const sessionsSelect = document.getElementById('sessionsPerWeek');
-
-  function updateSessionOptions() {
-    const selectedType = studentTypeSelect.value;
-    const options = CONFIG.STUDENT_TYPES[selectedType] || [];
-    
-    sessionsSelect.innerHTML = '';
-    options.forEach(opt => {
-      const el = document.createElement('option');
-      el.value = opt;
-      el.textContent = opt;
-      sessionsSelect.appendChild(el);
-    });
-
-    parseTargetSessionCount(sessionsSelect.value);
-    updateCounterBadge();
-  }
-
-  studentTypeSelect.addEventListener('change', updateSessionOptions);
-  sessionsSelect.addEventListener('change', (e) => {
-    parseTargetSessionCount(e.target.value);
-    updateCounterBadge();
-  });
-
-  updateSessionOptions();
-}
-
-function parseTargetSessionCount(valString) {
-  const match = valString.match(/\d+/);
-  if (match) {
-    state.targetSessionCount = parseInt(match[0], 10);
-  }
-}
 
 // Helper: Đếm số lượng học viên đã đăng ký cho từng ca từ Google Sheets
 function getSlotRegistrationCounts() {
@@ -248,11 +210,9 @@ function updateCounterBadge() {
   if (!badge || !counterText) return;
 
   const currentCount = state.selectedSlots.length;
-  const targetCount = state.targetSessionCount;
+  counterText.textContent = `Đã chọn: ${currentCount} ca học`;
 
-  counterText.textContent = `Đã chọn: ${currentCount} / ${targetCount} buổi`;
-
-  if (currentCount === targetCount) {
+  if (currentCount > 0) {
     badge.className = 'validation-badge valid';
     badge.querySelector('.badge-icon').innerHTML = '<i class="fa-solid fa-circle-check"></i>';
   } else {
@@ -272,8 +232,6 @@ function setupFormEventListeners() {
     const fullName = document.getElementById('fullName').value.trim();
     const phone = document.getElementById('phone').value.trim();
     const email = document.getElementById('email').value.trim();
-    const studentType = document.getElementById('studentType').value;
-    const sessionsPerWeek = document.getElementById('sessionsPerWeek').value;
     const goal = document.getElementById('goal').value.trim();
     const notes = document.getElementById('notes').value.trim();
 
@@ -291,8 +249,6 @@ function setupFormEventListeners() {
       fullName,
       phone,
       email,
-      studentType,
-      sessionsPerWeek,
       selectedSlots: state.selectedSlots.map(s => s.label),
       goal,
       notes
@@ -326,9 +282,7 @@ function setupFormEventListeners() {
           "Họ và Tên": fullName,
           "Số Điện Thoại / Zalo": phone,
           "Email": email,
-          "Loại Học Viên": studentType,
-          "Số Buổi / Tuần": sessionsPerWeek,
-          "Các Ca Học Đã Chọn": payload.selectedSlots.map(s => s.label).join(', '),
+          "Các Ca Học Đã Chọn": payload.selectedSlots.join(', '),
           "Mục Tiêu Học Tập": goal,
           "Ghi Chú": notes,
           "Thời Gian Đăng Ký": new Date().toLocaleString('vi-VN'),
@@ -370,7 +324,6 @@ function showSuccessModal(regId, data) {
       <p><strong>Mã đăng ký:</strong> <span style="color: var(--primary);">${regId}</span></p>
       <p><strong>Họ và Tên:</strong> ${data.fullName}</p>
       <p><strong>Số điện thoại:</strong> ${data.phone}</p>
-      <p><strong>Chương trình:</strong> ${data.studentType} (${data.sessionsPerWeek})</p>
       <p><strong>Lịch học đã chọn:</strong></p>
       <ul style="padding-left: 20px; margin-top: 4px; color: var(--text-muted);">
         ${data.selectedSlots.map(s => `<li>${s}</li>`).join('')}
