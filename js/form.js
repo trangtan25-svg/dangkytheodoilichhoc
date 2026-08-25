@@ -44,6 +44,19 @@ function parseTargetSessionCount(valString) {
   const match = valString.match(/\d+/);
   if (match) {
     state.targetSessionCount = parseInt(match[0], 10);
+    // Nếu số ca học đã chọn đang nhiều hơn số buổi mới chọn ở dropdown, tự động giới hạn lại đúng số buổi
+    if (state.selectedSlots.length > state.targetSessionCount) {
+      const removedSlots = state.selectedSlots.slice(state.targetSessionCount);
+      state.selectedSlots = state.selectedSlots.slice(0, state.targetSessionCount);
+      
+      // Bỏ class selected trên các ô bị thừa
+      removedSlots.forEach(slot => {
+        const slotEl = document.querySelector(`.slot-item[data-id="${slot.id}"]`);
+        if (slotEl) slotEl.classList.remove('selected');
+      });
+
+      renderSelectedTags();
+    }
   }
 }
 
@@ -133,19 +146,13 @@ function renderSlotsGrid() {
       slotItem.innerHTML = `
         <span class="slot-name" style="font-weight: 700; font-size: 0.88rem; display: block; margin-bottom: 2px;">${shift.label}</span>
         ${shift.time ? `<span class="slot-time">${shift.time}</span>` : ''}
-        <span class="slot-capacity-badge" style="${isAdminLocked ? 'background: rgba(239, 68, 68, 0.2); color: var(--danger); font-weight: 700;' : ''}">${badgeText}</span>
+        <span class="slot-capacity-badge">${badgeText}</span>
       `;
 
       slotItem.addEventListener('click', () => {
-        if (isAdminLocked) {
-          if (typeof showToast === 'function') {
-            showToast(`Ca học "${slotLabel}" hiện tại đã bị Quản trị viên KHÓA!`, 'error');
-          }
-          return;
-        }
-        if (isFull) {
-          if (typeof showToast === 'function') {
-            showToast(`Ca học "${slotLabel}" đã đủ tối đa 9/9 người đăng ký!`, 'error');
+        if (isDisabled) {
+          if (isAdminLocked && typeof showToast === 'function') {
+            showToast(`Ca học "${slotLabel}" hiện tại đã bị Khóa bởi Quản trị viên!`, 'error');
           }
           return;
         }
@@ -162,11 +169,11 @@ function renderSlotsGrid() {
   updateCounterBadge();
 }
 
-// 3. Toggle Multi-select slot selection
+// 3. Toggle Multi-select slot selection (Khóa không cho chọn vượt quá số buổi đăng ký)
 function toggleSlotSelection(slotId, slotLabel, element) {
   if (element.classList.contains('full') || element.classList.contains('disabled')) {
     if (typeof showToast === 'function') {
-      showToast(`Ca học này đã đủ 9/9 người đăng ký, không thể chọn!`, 'error');
+      showToast(`Ca học này đã đủ 9/9 người đăng ký hoặc đang bị khóa, không thể chọn!`, 'error');
     }
     return;
   }
@@ -177,6 +184,13 @@ function toggleSlotSelection(slotId, slotLabel, element) {
     state.selectedSlots.splice(index, 1);
     element.classList.remove('selected');
   } else {
+    const targetLimit = state.targetSessionCount || 4;
+    if (state.selectedSlots.length >= targetLimit) {
+      if (typeof showToast === 'function') {
+        showToast(`Bạn đã chọn đủ ${targetLimit} buổi/tuần theo số buổi đăng ký! Vui lòng bỏ chọn ca khác nếu muốn đổi ca học.`, 'warning');
+      }
+      return;
+    }
     state.selectedSlots.push({ id: slotId, label: slotLabel });
     element.classList.add('selected');
   }
@@ -216,16 +230,18 @@ function renderSelectedTags() {
   });
 }
 
-// Update Validation Counter Badge
+// Update Validation Counter Badge (Hiển thị Đã chọn: X / Y buổi)
 function updateCounterBadge() {
   const badge = document.getElementById('slotCounterBadge');
   const counterText = document.getElementById('counterText');
   if (!badge || !counterText) return;
 
   const currentCount = state.selectedSlots.length;
-  counterText.textContent = `Đã chọn: ${currentCount} ca học`;
+  const targetLimit = state.targetSessionCount || 4;
 
-  if (currentCount > 0) {
+  counterText.textContent = `Đã chọn: ${currentCount} / ${targetLimit} buổi`;
+
+  if (currentCount === targetLimit) {
     badge.className = 'validation-badge valid';
     badge.querySelector('.badge-icon').innerHTML = '<i class="fa-solid fa-circle-check"></i>';
   } else {
@@ -257,8 +273,15 @@ function setupFormEventListeners() {
       return;
     }
 
+    const targetLimit = state.targetSessionCount || 4;
+
     if (state.selectedSlots.length === 0) {
-      showToast('Vui lòng chọn ít nhất 1 ca học!', 'error');
+      showToast('Vui lòng chọn ít nhất 1 ca học trên bảng thời khóa biểu!', 'error');
+      return;
+    }
+
+    if (state.selectedSlots.length !== targetLimit) {
+      showToast(`Bạn đăng ký gói ${sessionsPerWeek}, vui lòng chọn đúng đủ ${targetLimit} ca học trên bảng (Hiện tại bạn đã chọn ${state.selectedSlots.length} ca).`, 'error');
       return;
     }
 
