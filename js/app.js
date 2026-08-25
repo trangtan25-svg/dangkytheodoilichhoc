@@ -77,7 +77,7 @@ function initNavigationTabs() {
         }
       } else {
         if (typeof showToast === 'function') {
-          showToast('Mật khẩu không chính xác! Vui lòng thử lại (Mật khẩu: 12345)', 'error');
+          showToast('Mật khẩu không chính xác! Vui lòng kiểm tra và thử lại.', 'error');
         }
         if (authInput) {
           authInput.value = '';
