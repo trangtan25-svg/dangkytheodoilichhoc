@@ -14,11 +14,23 @@ let filterShift = 'all';
 let searchQuery = '';
 let currentViewMode = 'table'; // 'table' | 'grid' | 'cards' (Mặc định dạng Bảng để cực kỳ dễ nhìn)
 
-async function fetchScheduleData() {
+async function fetchScheduleData(forceRefresh = false) {
   const container = document.getElementById('scheduleResultsGrid');
   if (!container) return;
 
-  container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px;"><i class="fa-solid fa-spinner fa-spin fa-2x text-primary"></i><p style="margin-top: 10px; color: var(--text-muted);">Đang tải dữ liệu thời khóa biểu từ Google Sheet...</p></div>';
+  // Tối ưu hóa hiệu năng: Nếu đã có dữ liệu trong bộ nhớ dưới 30 giây & không ép buộc làm mới -> Render tức thì < 5ms!
+  const CACHE_TTL_MS = 30000;
+  if (!forceRefresh && state.registrations && state.registrations.length > 0 && state.lastFetchTime && (Date.now() - state.lastFetchTime) < CACHE_TTL_MS) {
+    updateDynamicShiftFilter();
+    renderScheduleList();
+    if (typeof renderSlotsGrid === 'function') renderSlotsGrid();
+    return;
+  }
+
+  // Chỉ hiển thị spinner tải khi bộ nhớ trống
+  if (!state.registrations || state.registrations.length === 0) {
+    container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px;"><i class="fa-solid fa-spinner fa-spin fa-2x text-primary"></i><p style="margin-top: 10px; color: var(--text-muted);">Đang tải dữ liệu thời khóa biểu từ Google Sheet...</p></div>';
+  }
 
   let success = false;
   let lastErrorMessage = '';
@@ -30,6 +42,7 @@ async function fetchScheduleData() {
       if (result.status === 'success') {
         state.registrations = Array.isArray(result.registrations) ? result.registrations : (Array.isArray(result.data) ? result.data : []);
         state.dropdownSlots = Array.isArray(result.dropdowns) ? result.dropdowns : [];
+        state.lastFetchTime = Date.now();
         success = true;
       } else if (result.message) {
         lastErrorMessage = result.message;
@@ -610,12 +623,12 @@ function setupScheduleEventListeners() {
     });
   }
 
-  // Nút Làm mới dữ liệu
+  // Nút Làm mới dữ liệu (Thực hiện tải lại trực tiếp từ Google Sheet)
   if (refreshBtn) {
     refreshBtn.addEventListener('click', () => {
-      fetchScheduleData();
+      fetchScheduleData(true);
       if (typeof showToast === 'function') {
-        showToast('Đang làm mới dữ liệu từ Google Sheet...', 'info');
+        showToast('Đang làm mới dữ liệu trực tiếp từ Google Sheet...', 'info');
       }
     });
   }

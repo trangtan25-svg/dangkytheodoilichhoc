@@ -343,18 +343,18 @@ function setupAdminEventListeners() {
 
   if (refreshAdminBtn) {
     refreshAdminBtn.addEventListener('click', async () => {
-      if (typeof fetchScheduleData === 'function') await fetchScheduleData();
+      if (typeof fetchScheduleData === 'function') await fetchScheduleData(true);
       renderAdminSlotsGrid();
       renderExistingSlotsTable();
-      if (typeof showToast === 'function') showToast('Đã làm mới dữ liệu quản trị!', 'info');
+      if (typeof showToast === 'function') showToast('Đã làm mới dữ liệu quản trị từ Google Sheet!', 'info');
     });
   }
 
   if (refreshExistingSlotsBtn) {
     refreshExistingSlotsBtn.addEventListener('click', async () => {
-      if (typeof fetchScheduleData === 'function') await fetchScheduleData();
+      if (typeof fetchScheduleData === 'function') await fetchScheduleData(true);
       renderExistingSlotsTable();
-      if (typeof showToast === 'function') showToast('Đã làm mới danh sách ca học!', 'info');
+      if (typeof showToast === 'function') showToast('Đã làm mới danh sách ca học từ Google Sheet!', 'info');
     });
   }
 
