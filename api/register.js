@@ -17,7 +17,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const scriptUrl = process.env.GOOGLE_SCRIPT_URL;
+    const scriptUrl = (process.env.GOOGLE_SCRIPT_URL || '').trim();
 
     if (!scriptUrl) {
       return res.status(500).json({
