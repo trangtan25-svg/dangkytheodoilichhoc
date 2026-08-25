@@ -23,6 +23,9 @@ async function fetchScheduleData() {
     if (result.status === 'success' && Array.isArray(result.data)) {
       state.registrations = result.data;
       renderScheduleList();
+      if (typeof renderSlotsGrid === 'function') {
+        renderSlotsGrid();
+      }
     } else {
       renderScheduleList(); // Render state fallback
     }

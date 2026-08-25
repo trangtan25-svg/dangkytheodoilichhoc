@@ -64,12 +64,48 @@ function doGet(e) {
   }
 }
 
-// 2. CHIỀU GHI DỮ LIỆU (POST): Nhận đăng ký mới từ Web và append vào Google Sheet
+// 2. CHIỀU GHI DỮ LIỆU (POST): Nhận đăng ký mới từ Web và append vào Google Sheet với kiểm tra giới hạn 9 người/ca
 function doPost(e) {
   try {
     const sheet = initSheet();
     const contents = JSON.parse(e.postData.contents);
-    
+    const MAX_SLOT_CAPACITY = 9;
+
+    const requestedSlots = Array.isArray(contents.selectedSlots)
+      ? contents.selectedSlots
+      : (contents.selectedSlots ? [contents.selectedSlots] : []);
+
+    // Đếm số lượng đăng ký hiện tại trong Sheet để đảm bảo không ca nào > 9 người
+    const data = sheet.getDataRange().getValues();
+    const rows = data.slice(1); // Bỏ dòng tiêu đề
+    const slotCounts = {};
+
+    rows.forEach(row => {
+      const selectedStr = row[6] || ''; // Cột 'Các Ca Học Đã Chọn'
+      if (selectedStr) {
+        const slots = selectedStr.toString().split(',').map(s => s.trim());
+        slots.forEach(slot => {
+          if (slot) {
+            slotCounts[slot] = (slotCounts[slot] || 0) + 1;
+          }
+        });
+      }
+    });
+
+    // Kiểm tra xem có ca học nào được chọn đã đầy (>= 9 người)
+    for (let i = 0; i < requestedSlots.length; i++) {
+      const slotName = requestedSlots[i];
+      const currentCount = slotCounts[slotName] || 0;
+      if (currentCount >= MAX_SLOT_CAPACITY) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ 
+            status: 'error', 
+            message: 'Ca học "' + slotName + '" đã đủ tối đa 9 người đăng ký. Vui lòng chọn ca học khác!' 
+          }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
     const registrationId = 'DK-' + Date.now().toString().slice(-6);
     const timestamp = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
     
@@ -80,7 +116,7 @@ function doPost(e) {
       contents.email || '',
       contents.studentType || 'Cấp tốc',
       contents.sessionsPerWeek || '4 buổi/tuần',
-      Array.isArray(contents.selectedSlots) ? contents.selectedSlots.join(', ') : (contents.selectedSlots || ''),
+      requestedSlots.join(', '),
       contents.goal || '',
       contents.notes || '',
       timestamp,

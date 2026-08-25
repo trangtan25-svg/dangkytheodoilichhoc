@@ -5,6 +5,7 @@
 
 const CONFIG = {
   GOOGLE_SHEET_ID: '1bv1twT1xlmRYWbEI3uzlEV-te5-pbtm5qIw7cqJa6HA',
+  MAX_SLOT_CAPACITY: 9,
 
   // Strict Vercel Serverless Endpoints
   API: {

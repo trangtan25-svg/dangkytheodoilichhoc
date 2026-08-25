@@ -46,12 +46,33 @@ function parseTargetSessionCount(valString) {
   }
 }
 
-// 2. Render Multi-Select Slots Matrix Grid
+// Helper: Đếm số lượng học viên đã đăng ký cho từng ca từ Google Sheets
+function getSlotRegistrationCounts() {
+  const counts = {};
+  if (Array.isArray(state.registrations)) {
+    state.registrations.forEach(reg => {
+      const selectedStr = reg['Các Ca Học Đã Chọn'] || '';
+      if (selectedStr) {
+        const slots = selectedStr.split(',').map(s => s.trim());
+        slots.forEach(slot => {
+          if (slot) {
+            counts[slot] = (counts[slot] || 0) + 1;
+          }
+        });
+      }
+    });
+  }
+  return counts;
+}
+
+// 2. Render Multi-Select Slots Matrix Grid (Đồng bộ 2 chiều số chỗ & Khóa ca đủ 9/9 người)
 function renderSlotsGrid() {
   const gridContainer = document.getElementById('slotsGrid');
   if (!gridContainer) return;
 
   gridContainer.innerHTML = '';
+  const slotCounts = getSlotRegistrationCounts();
+  const maxCapacity = CONFIG.MAX_SLOT_CAPACITY || 9;
 
   CONFIG.DAYS.forEach(day => {
     const dayCol = document.createElement('div');
@@ -65,28 +86,56 @@ function renderSlotsGrid() {
     CONFIG.SHIFTS.forEach(shift => {
       const slotId = `${day.key}_${shift.key}`;
       const slotLabel = `${day.label} (${shift.label}: ${shift.time})`;
+      const count = slotCounts[slotLabel] || 0;
+      const isFull = count >= maxCapacity;
+      const isSelected = state.selectedSlots.some(s => s.id === slotId);
+
+      if (isFull && isSelected) {
+        const idx = state.selectedSlots.findIndex(s => s.id === slotId);
+        if (idx > -1) state.selectedSlots.splice(idx, 1);
+      }
 
       const slotItem = document.createElement('div');
-      slotItem.className = 'slot-item';
+      slotItem.className = `slot-item ${isFull ? 'full disabled' : ''} ${isSelected && !isFull ? 'selected' : ''}`;
       slotItem.dataset.id = slotId;
       slotItem.dataset.label = slotLabel;
+      slotItem.dataset.count = count;
 
       slotItem.innerHTML = `
         <span class="slot-time">${shift.time}</span>
         <span class="slot-name">${shift.label}</span>
+        <span class="slot-capacity-badge">${isFull ? 'ĐÃ ĐẦY (9/9)' : `${count}/${maxCapacity} người`}</span>
       `;
 
-      slotItem.addEventListener('click', () => toggleSlotSelection(slotId, slotLabel, slotItem));
+      slotItem.addEventListener('click', () => {
+        if (isFull) {
+          if (typeof showToast === 'function') {
+            showToast(`Ca học "${slotLabel}" đã đủ tối đa 9/9 người đăng ký!`, 'error');
+          }
+          return;
+        }
+        toggleSlotSelection(slotId, slotLabel, slotItem);
+      });
 
       dayCol.appendChild(slotItem);
     });
 
     gridContainer.appendChild(dayCol);
   });
+
+  renderSelectedTags();
+  updateCounterBadge();
 }
 
 // 3. Toggle Multi-select slot selection
 function toggleSlotSelection(slotId, slotLabel, element) {
+  if (element.classList.contains('full') || element.classList.contains('disabled')) {
+    if (typeof showToast === 'function') {
+      showToast(`Ca học này đã đủ 9/9 người đăng ký, không thể chọn!`, 'error');
+    }
+    return;
+  }
+
   const index = state.selectedSlots.findIndex(s => s.id === slotId);
 
   if (index > -1) {
