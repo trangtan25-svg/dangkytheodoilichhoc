@@ -16,23 +16,79 @@ async function fetchScheduleData() {
 
   container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px;"><i class="fa-solid fa-spinner fa-spin fa-2x text-primary"></i><p style="margin-top: 10px; color: var(--text-muted);">Đang tải dữ liệu thời khóa biểu từ Google Sheet...</p></div>';
 
+  let success = false;
+
+  // Cách 1: Thử gọi Vercel Serverless Endpoint (/api/schedule)
   try {
     const res = await fetch(CONFIG.API.SCHEDULE);
-    const result = await res.json();
-
-    if (result.status === 'success' && Array.isArray(result.data)) {
-      state.registrations = result.data;
-      renderScheduleList();
-      if (typeof renderSlotsGrid === 'function') {
-        renderSlotsGrid();
+    if (res.ok) {
+      const result = await res.json();
+      if (result.status === 'success' && Array.isArray(result.data)) {
+        state.registrations = result.data;
+        success = true;
       }
-    } else {
-      renderScheduleList(); // Render state fallback
     }
   } catch (err) {
-    console.error('Fetch schedule error:', err);
-    renderScheduleList();
+    console.warn('Vercel API failed, trying direct Google Script URL...', err);
   }
+
+  // Cách 2: Dự phòng gọi trực tiếp Google Apps Script URL (nếu có trong CONFIG hoặc localStorage)
+  if (!success && CONFIG.GOOGLE_SCRIPT_URL) {
+    try {
+      const res = await fetch(CONFIG.GOOGLE_SCRIPT_URL, { redirect: 'follow' });
+      const result = await res.json();
+      if (result.status === 'success' && Array.isArray(result.data)) {
+        state.registrations = result.data;
+        success = true;
+      }
+    } catch (err) {
+      console.error('Direct Google Script fetch error:', err);
+    }
+  }
+
+  if (success) {
+    renderScheduleList();
+    if (typeof renderSlotsGrid === 'function') {
+      renderSlotsGrid();
+    }
+  } else {
+    renderConnectionPrompt(container);
+  }
+}
+
+function renderConnectionPrompt(container) {
+  const currentUrl = CONFIG.GOOGLE_SCRIPT_URL || '';
+  container.innerHTML = `
+    <div style="grid-column: 1/-1; padding: 32px 24px; background: var(--bg-card); border-radius: var(--radius-lg); border: 1px dashed var(--primary); text-align: center;">
+      <i class="fa-solid fa-link-slash fa-3x text-warning" style="margin-bottom: 16px;"></i>
+      <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 8px;">Chưa kết nối được với Google Sheet</h3>
+      <p style="color: var(--text-muted); font-size: 0.9rem; max-width: 600px; margin: 0 auto 20px auto;">
+        Vui lòng dán <strong>URL Web App từ Google Apps Script</strong> của bạn vào bên dưới để hoàn tất liên kết dữ liệu 2 chiều.
+      </p>
+      
+      <div style="display: flex; gap: 10px; max-width: 650px; margin: 0 auto;">
+        <input type="url" id="scriptUrlInput" value="${currentUrl}" placeholder="https://script.google.com/macros/s/AKfycb.../exec" style="flex: 1; padding: 10px 14px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: var(--radius-md); color: var(--text-main); font-size: 0.9rem;">
+        <button id="saveScriptUrlBtn" class="btn btn-primary" style="white-space: nowrap;">
+          <i class="fa-solid fa-plug"></i> Kết nối ngay
+        </button>
+      </div>
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 12px;">
+        <i class="fa-solid fa-circle-info"></i> Sau khi bấm "Kết nối ngay", dữ liệu thời khóa biểu và số lượng học viên từng ca sẽ được hiển thị ngay lập tức!
+      </p>
+    </div>
+  `;
+
+  document.getElementById('saveScriptUrlBtn').addEventListener('click', () => {
+    const inputVal = document.getElementById('scriptUrlInput').value.trim();
+    if (!inputVal || !inputVal.includes('script.google.com')) {
+      if (typeof showToast === 'function') showToast('Vui lòng dán đúng URL Google Apps Script dạng https://script.google.com/macros/s/.../exec', 'error');
+      return;
+    }
+    localStorage.setItem('GOOGLE_SCRIPT_URL', inputVal);
+    CONFIG.GOOGLE_SCRIPT_URL = inputVal;
+    if (typeof showToast === 'function') showToast('Đã lưu cấu hình kết nối Google Sheet!', 'success');
+    fetchScheduleData();
+  });
 }
 
 function renderScheduleList() {

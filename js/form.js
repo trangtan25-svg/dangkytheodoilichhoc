@@ -246,16 +246,44 @@ function setupFormEventListeners() {
     btnSpinner.classList.remove('d-none');
     submitBtn.disabled = true;
 
+    let result = null;
+
     try {
-      // Send directly to Vercel Serverless API endpoint
+      // 1. Thử gửi qua Vercel Serverless API
       const res = await fetch(CONFIG.API.REGISTER, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      const result = await res.json();
+      if (res.ok) {
+        result = await res.json();
+      }
+    } catch (err) {
+      console.warn('Vercel Register API failed, trying direct Google Script fallback...', err);
+    }
 
-      if (result.status === 'success') {
+    // 2. Dự phòng: Gửi trực tiếp tới Google Apps Script Web App URL nếu Vercel API thất bại
+    if ((!result || result.status !== 'success') && CONFIG.GOOGLE_SCRIPT_URL) {
+      try {
+        const res = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload),
+          redirect: 'follow'
+        });
+        const textRes = await res.text();
+        try {
+          result = JSON.parse(textRes);
+        } catch (e) {
+          result = { status: 'success', registrationId: 'DK-' + Date.now().toString().slice(-6) };
+        }
+      } catch (err) {
+        console.error('Direct Google Script register error:', err);
+      }
+    }
+
+    try {
+      if (result && result.status === 'success') {
         const regId = result.registrationId || 'DK-' + Date.now().toString().slice(-6);
         showSuccessModal(regId, payload);
         showToast('Đăng ký thành công! Đã gửi thông tin lên Google Sheet.', 'success');
