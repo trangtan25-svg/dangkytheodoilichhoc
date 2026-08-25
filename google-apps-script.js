@@ -19,17 +19,23 @@
  * 2. Dropdown       : Chứa danh sách các Ca học / Khung giờ tùy chỉnh
  */
 
+const SPREADSHEET_ID = '1bv1twT1xlmRYWbEI3uzlEV-te5-pbtm5qIw7cqJa6HA';
 const SHEET_REGISTRATIONS = 'DangKyLichHoc';
-const SHEET_DROPDOWN = 'Dropdown';
+const SHEET_DROPDOWN = 'quanlykhunggio';
 const MAX_SLOT_CAPACITY = 9;
 
-// 1. Helper lấy trang tính theo tên (Tự động khởi tạo nếu chưa có)
+// 1. Helper lấy trang tính theo tên (Truy xuất trực tiếp theo Spreadsheet ID để tối ưu tốc độ)
 function getSheet(sheetName) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let ss;
+  try {
+    ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  } catch (e) {
+    ss = SpreadsheetApp.getActiveSpreadsheet();
+  }
+
   let sheet = ss.getSheetByName(sheetName);
 
   if (!sheet) {
-    // Nếu tìm theo tên không có, kiểm tra xem có sheet nào đang dùng tạm không
     if (sheetName === SHEET_REGISTRATIONS) {
       sheet = ss.getSheetByName('Sheet1') || ss.getSheetByName('Trang tính1') || ss.getSheets()[0];
       if (sheet) {
@@ -38,7 +44,14 @@ function getSheet(sheetName) {
         sheet = ss.insertSheet(SHEET_REGISTRATIONS);
       }
     } else if (sheetName === SHEET_DROPDOWN) {
-      sheet = ss.insertSheet(SHEET_DROPDOWN);
+      // Tìm xem có sheet Dropdown cũ không để đổi tên sang quanlykhunggio
+      const oldSheet = ss.getSheetByName('Dropdown');
+      if (oldSheet) {
+        try { oldSheet.setName(SHEET_DROPDOWN); sheet = oldSheet; } catch (e) {}
+      }
+      if (!sheet) {
+        sheet = ss.insertSheet(SHEET_DROPDOWN);
+      }
     }
   }
 
