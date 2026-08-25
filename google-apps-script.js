@@ -146,29 +146,66 @@ function doGet(e) {
       });
     }
 
-    // B. Đọc dữ liệu ca học từ sheet Dropdown
+    // B. Đọc dữ liệu ca học từ sheet quanlykhunggio (Tự động nhận diện Dạng Ma trận hoặc Dạng Dòng)
     const dropdownSheet = getSheet(SHEET_DROPDOWN);
     const dropdownData = dropdownSheet.getDataRange().getValues();
     const dropdownSlots = [];
 
     if (dropdownData && dropdownData.length > 1) {
-      const dropRows = dropdownData.slice(1);
-      dropRows.forEach((row) => {
-        if (!row[0] && !row[1]) return;
-        const dayLabel = (row[0] || '').toString().trim();
-        const shiftLabel = (row[1] || '').toString().trim();
-        const shiftTime = (row[2] || '').toString().trim();
-        const status = (row[3] || 'Hoạt động').toString().trim();
+      const headers = dropdownData[0].map(h => (h || '').toString().trim());
+      const isMatrixFormat = headers.some((h, idx) => idx > 0 && (h.toLowerCase().includes('khung giờ') || h.toLowerCase().includes('ca '))) &&
+                             !headers[1].toLowerCase().includes('tên ca') && !headers[1].toLowerCase().includes('ca học');
 
-        const fullLabel = shiftTime ? `${dayLabel} (${shiftLabel}: ${shiftTime})` : `${dayLabel} (${shiftLabel})`;
-        dropdownSlots.push({
-          day: dayLabel,
-          shift: shiftLabel,
-          time: shiftTime,
-          status: status,
-          label: fullLabel
+      if (isMatrixFormat) {
+        // DẠNG MA TRẬN: Dòng 1 chứa tên ca học (Col 1: Khung giờ 1, Col 2: Khung giờ 2...)
+        for (let i = 1; i < dropdownData.length; i++) {
+          const dayLabel = (dropdownData[i][0] || '').toString().trim();
+          if (!dayLabel) continue;
+
+          for (let col = 1; col < headers.length; col++) {
+            const shiftLabel = headers[col];
+            if (!shiftLabel) continue;
+            const status = (dropdownData[i][col] || 'Hoạt động').toString().trim();
+
+            dropdownSlots.push({
+              day: dayLabel,
+              shift: shiftLabel,
+              time: '',
+              status: status,
+              label: `${dayLabel} (${shiftLabel})`
+            });
+          }
+        }
+      } else {
+        // DẠNG DÒNG (Standard): Cột 1 = Thứ, Cột 2 = Tên ca, Cột 3 = Thời gian, Cột Trạng thái
+        let statusColIndex = 3; // Mặc định là Cột D (0-indexed)
+        headers.forEach((h, idx) => {
+          const hLower = h.toLowerCase();
+          if (hLower.includes('trạng thái') || hLower.includes('trang thai') || hLower.includes('khóa') || hLower.includes('mô tả') || hLower.includes('status')) {
+            statusColIndex = idx;
+          }
         });
-      });
+
+        for (let i = 1; i < dropdownData.length; i++) {
+          const row = dropdownData[i];
+          if (!row[0] && !row[1]) continue;
+          const dayLabel = (row[0] || '').toString().trim();
+          const shiftLabel = (row[1] || '').toString().trim();
+          const shiftTime = (row[2] || '').toString().trim();
+          const status = (row[statusColIndex] !== undefined && row[statusColIndex] !== null && row[statusColIndex] !== '') 
+            ? row[statusColIndex].toString().trim() 
+            : 'Hoạt động';
+
+          const fullLabel = shiftTime ? `${dayLabel} (${shiftLabel}: ${shiftTime})` : `${dayLabel} (${shiftLabel})`;
+          dropdownSlots.push({
+            day: dayLabel,
+            shift: shiftLabel,
+            time: shiftTime,
+            status: status,
+            label: fullLabel
+          });
+        }
+      }
     }
 
     return ContentService
@@ -205,7 +242,7 @@ function doPost(e) {
     const dropdownSheet = getSheet(SHEET_DROPDOWN);
     const contents = JSON.parse(e.postData.contents);
 
-    // D. Hành động Thêm Khung giờ / Ca học mới vào sheet Dropdown
+    // A. Hành động Thêm Khung giờ / Ca học mới vào sheet quanlykhunggio
     if (contents.action === 'addDropdownSlot') {
       const newDay = contents.day || 'Thứ 2';
       const newShift = contents.shift || 'Khung giờ mới';
@@ -222,34 +259,78 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    // A. Hành động Quản trị Mở / Khóa Đơn lẻ Ca học (Khớp linh hoạt Thứ và Tên Ca)
+    // B. Hành động Quản trị Mở / Khóa Đơn lẻ Ca học (Thông minh tự phát hiện Dạng Ma trận hoặc Dạng Dòng)
     if (contents.action === 'updateSlotStatus') {
       const targetDay = (contents.day || '').toString().trim().toLowerCase();
       const targetShift = (contents.shift || '').toString().trim().toLowerCase();
       const newStatus = contents.status || 'Đã khóa'; // 'Hoạt động' | 'Đã khóa'
 
       const dropData = dropdownSheet.getDataRange().getValues();
-      let foundIndex = -1;
 
-      for (let i = 1; i < dropData.length; i++) {
-        const dayVal = (dropData[i][0] || '').toString().trim().toLowerCase();
-        const shiftVal = (dropData[i][1] || '').toString().trim().toLowerCase();
+      if (dropData && dropData.length > 0) {
+        const headers = dropData[0].map(h => (h || '').toString().trim());
 
-        const dayMatch = (dayVal === targetDay) || dayVal.includes(targetDay) || targetDay.includes(dayVal);
-        const shiftMatch = (shiftVal === targetShift) || shiftVal.includes(targetShift) || targetShift.includes(shiftVal);
-
-        if (dayMatch && shiftMatch) {
-          foundIndex = i + 1;
-          break;
+        // 1. Kiểm tra xem Sheet có phải dạng Ma trận (Cột B, C... là Tên ca như "Khung giờ 1", "Khung giờ 2")
+        let matrixColIndex = -1;
+        for (let c = 1; c < headers.length; c++) {
+          const hLower = headers[c].toLowerCase();
+          if (hLower === targetShift || hLower.includes(targetShift) || targetShift.includes(hLower)) {
+            if (!hLower.includes('tên ca') && !hLower.includes('thời gian') && !hLower.includes('trạng thái')) {
+              matrixColIndex = c;
+              break;
+            }
+          }
         }
-      }
 
-      if (foundIndex > -1) {
-        // Ghi trực tiếp giá trị mới vào Cột 4 (Mô Tả / Trạng Thái)
-        dropdownSheet.getRange(foundIndex, 4).setValue(newStatus);
-      } else {
-        // Nếu không tìm thấy dòng khớp thì chèn dòng mới
-        dropdownSheet.appendRow([contents.day, contents.shift, '', newStatus]);
+        if (matrixColIndex > -1) {
+          // Xử lý DẠNG MA TRẬN
+          let foundRow = -1;
+          for (let i = 1; i < dropData.length; i++) {
+            const dayVal = (dropData[i][0] || '').toString().trim().toLowerCase();
+            if (dayVal === targetDay || dayVal.includes(targetDay) || targetDay.includes(dayVal)) {
+              foundRow = i + 1;
+              break;
+            }
+          }
+          if (foundRow > -1) {
+            dropdownSheet.getRange(foundRow, matrixColIndex + 1).setValue(newStatus);
+          } else {
+            const newRowArr = new Array(headers.length).fill('');
+            newRowArr[0] = contents.day;
+            newRowArr[matrixColIndex] = newStatus;
+            dropdownSheet.appendRow(newRowArr);
+          }
+        } else {
+          // Xử lý DẠNG DÒNG (Standard)
+          let statusColIndex = 4; // Mặc định Cột D (1-based index)
+          for (let c = 0; c < headers.length; c++) {
+            const hLower = headers[c].toLowerCase();
+            if (hLower.includes('trạng thái') || hLower.includes('trang thai') || hLower.includes('khóa') || hLower.includes('mô tả') || hLower.includes('status')) {
+              statusColIndex = c + 1;
+              break;
+            }
+          }
+
+          let foundRow = -1;
+          for (let i = 1; i < dropData.length; i++) {
+            const dayVal = (dropData[i][0] || '').toString().trim().toLowerCase();
+            const shiftVal = (dropData[i][1] || '').toString().trim().toLowerCase();
+
+            const dayMatch = (dayVal === targetDay) || dayVal.includes(targetDay) || targetDay.includes(dayVal);
+            const shiftMatch = (shiftVal === targetShift) || shiftVal.includes(targetShift) || targetShift.includes(shiftVal);
+
+            if (dayMatch && shiftMatch) {
+              foundRow = i + 1;
+              break;
+            }
+          }
+
+          if (foundRow > -1) {
+            dropdownSheet.getRange(foundRow, statusColIndex).setValue(newStatus);
+          } else {
+            dropdownSheet.appendRow([contents.day, contents.shift, '', newStatus]);
+          }
+        }
       }
 
       return ContentService
@@ -260,14 +341,30 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    // B. Hành động Quản trị Mở / Khóa Tất cả 7 ngày & Ca học
+    // C. Hành động Quản trị Mở / Khóa Tất cả 7 ngày & Ca học
     if (contents.action === 'toggleAllSlots') {
       const newStatus = contents.status || 'Hoạt động';
       const dropData = dropdownSheet.getDataRange().getValues();
 
       if (dropData && dropData.length > 1) {
+        const headers = dropData[0].map(h => (h || '').toString().trim());
+        let statusColIndex = 4;
+        for (let c = 0; c < headers.length; c++) {
+          const hLower = headers[c].toLowerCase();
+          if (hLower.includes('trạng thái') || hLower.includes('trang thai') || hLower.includes('khóa') || hLower.includes('mô tả') || hLower.includes('status')) {
+            statusColIndex = c + 1;
+            break;
+          }
+        }
+
         for (let i = 1; i < dropData.length; i++) {
-          dropdownSheet.getRange(i + 1, 4).setValue(newStatus);
+          for (let col = 1; col < headers.length; col++) {
+            const hLower = headers[col].toLowerCase();
+            if (hLower.includes('khung giờ') || hLower.includes('ca ')) {
+              dropdownSheet.getRange(i + 1, col + 1).setValue(newStatus);
+            }
+          }
+          dropdownSheet.getRange(i + 1, statusColIndex).setValue(newStatus);
         }
       }
 
