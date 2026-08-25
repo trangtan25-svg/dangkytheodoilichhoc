@@ -226,34 +226,123 @@
 
       <!-- SUB-PANE 1: THEO DÕI & DUYỆT HỌC VIÊN -->
       <div id="admin-pane-tracker" class="admin-subpane active">
-        <div class="tracker-toolbar card">
-          <div class="search-box">
-            <i class="fa-solid fa-magnifying-glass search-icon"></i>
-            <input type="text" id="searchInput" placeholder="Nhập Số điện thoại, Email hoặc Họ tên để tra cứu...">
-            <button class="btn btn-secondary" id="searchBtn">Tra cứu</button>
+        
+        <!-- THỐNG KÊ NHANH DASHBOARD -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 20px;">
+          <div class="card" style="padding: 16px; display: flex; align-items: center; gap: 12px; background: var(--bg-card); border-left: 4px solid var(--primary);">
+            <div style="width: 42px; height: 42px; border-radius: 50%; background: rgba(79, 70, 229, 0.15); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+              <i class="fa-solid fa-users"></i>
+            </div>
+            <div>
+              <div style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">TỔNG HỌC VIÊN</div>
+              <div style="font-size: 1.35rem; font-weight: 800; color: var(--text-main);" id="statTotalStudents">0</div>
+            </div>
           </div>
 
-          <div class="filter-tabs">
-            <button class="filter-btn active" data-filter="all">Tất cả (<span id="countAll">0</span>)</button>
-            <button class="filter-btn" data-filter="Chờ xác nhận">Chờ duyệt (<span id="countPending">0</span>)</button>
-            <button class="filter-btn" data-filter="Đã xác nhận">Đã xác nhận (<span id="countConfirmed">0</span>)</button>
+          <div class="card" style="padding: 16px; display: flex; align-items: center; gap: 12px; background: var(--bg-card); border-left: 4px solid var(--warning);">
+            <div style="width: 42px; height: 42px; border-radius: 50%; background: rgba(245, 158, 11, 0.15); color: var(--warning); display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+              <i class="fa-solid fa-clock"></i>
+            </div>
+            <div>
+              <div style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">ĐƠN CHỜ DUYỆT</div>
+              <div style="font-size: 1.35rem; font-weight: 800; color: var(--warning);" id="statPendingStudents">0</div>
+            </div>
           </div>
 
-          <button class="btn btn-outline" id="refreshScheduleBtn" title="Tải lại từ Google Sheet">
-            <i class="fa-solid fa-rotate-right"></i> Làm mới
-          </button>
+          <div class="card" style="padding: 16px; display: flex; align-items: center; gap: 12px; background: var(--bg-card); border-left: 4px solid var(--success);">
+            <div style="width: 42px; height: 42px; border-radius: 50%; background: rgba(16, 185, 129, 0.15); color: var(--success); display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+              <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <div>
+              <div style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">ĐÃ XÁC NHẬN</div>
+              <div style="font-size: 1.35rem; font-weight: 800; color: var(--success);" id="statConfirmedStudents">0</div>
+            </div>
+          </div>
 
-          <div style="display: flex; gap: 8px; margin-left: auto;">
-            <button class="btn btn-outline active" id="viewModeGridBtn" title="Xem danh sách ca học theo Thứ">
-              <i class="fa-solid fa-calendar-days"></i> Xem theo Thứ & Ca
+          <div class="card" style="padding: 16px; display: flex; align-items: center; gap: 12px; background: var(--bg-card); border-left: 4px solid #8b5cf6;">
+            <div style="width: 42px; height: 42px; border-radius: 50%; background: rgba(139, 92, 246, 0.15); color: #8b5cf6; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+              <i class="fa-solid fa-calendar-week"></i>
+            </div>
+            <div>
+              <div style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">LƯỢNG CA ĐĂNG KÝ</div>
+              <div style="font-size: 1.35rem; font-weight: 800; color: #8b5cf6;" id="statTotalSlotsPicked">0</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- THANH CÔNG CỤ TÌM KIẾM VÀ BỘ LỌC NÂNG CAO -->
+        <div class="tracker-toolbar card" style="padding: 18px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 14px;">
+          
+          <!-- Hàng 1: Ô tìm kiếm và Các Nút Chế độ xem -->
+          <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center; width: 100%;">
+            <div class="search-box" style="flex: 1; min-width: 260px;">
+              <i class="fa-solid fa-magnifying-glass search-icon"></i>
+              <input type="text" id="searchInput" placeholder="Nhập Số điện thoại, Họ tên, Email hoặc Mã DK...">
+              <button class="btn btn-secondary" id="searchBtn">Tra cứu</button>
+            </div>
+
+            <button class="btn btn-outline" id="refreshScheduleBtn" title="Tải lại từ Google Sheet">
+              <i class="fa-solid fa-rotate-right"></i> Làm mới
             </button>
-            <button class="btn btn-outline" id="viewModeCardsBtn" title="Xem danh sách học viên dạng thẻ">
-              <i class="fa-solid fa-users"></i> Thẻ Học Viên
+
+            <!-- 3 Chế độ Xem -->
+            <div style="display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap;" id="viewModeGroup">
+              <button class="btn btn-sm btn-outline active" id="viewModeTableBtn" title="Xem dạng bảng quản trị dễ nhìn">
+                <i class="fa-solid fa-table-list"></i> Dạng Bảng Dễ Nhìn
+              </button>
+              <button class="btn btn-sm btn-outline" id="viewModeGridBtn" title="Xem danh sách ca học theo Thứ">
+                <i class="fa-solid fa-calendar-days"></i> Theo Thứ & Ca
+              </button>
+              <button class="btn btn-sm btn-outline" id="viewModeCardsBtn" title="Xem danh sách học viên dạng thẻ">
+                <i class="fa-solid fa-users"></i> Thẻ Học Viên
+              </button>
+            </div>
+          </div>
+
+          <!-- Hàng 2: Bộ lọc linh hoạt nâng cao -->
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; padding-top: 10px; border-top: 1px dashed var(--border-color);">
+            <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+              <i class="fa-solid fa-filter text-primary"></i> Bộ lọc:
+            </span>
+
+            <!-- Lọc Trạng Thái nút Pill -->
+            <div class="filter-tabs" style="margin: 0;">
+              <button class="filter-btn active" data-filter="all">Tất cả (<span id="countAll">0</span>)</button>
+              <button class="filter-btn" data-filter="Chờ xác nhận">Chờ duyệt (<span id="countPending">0</span>)</button>
+              <button class="filter-btn" data-filter="Đã xác nhận">Đã xác nhận (<span id="countConfirmed">0</span>)</button>
+            </div>
+
+            <!-- Dropdown Lọc Thứ -->
+            <div class="select-wrapper" style="width: auto; min-width: 130px;">
+              <select id="filterDaySelect" style="padding: 6px 30px 6px 12px; font-size: 0.82rem; height: 34px;">
+                <option value="all">📅 Tất cả Thứ</option>
+                <option value="Thứ 2">Thứ 2</option>
+                <option value="Thứ 3">Thứ 3</option>
+                <option value="Thứ 4">Thứ 4</option>
+                <option value="Thứ 5">Thứ 5</option>
+                <option value="Thứ 6">Thứ 6</option>
+                <option value="Thứ 7">Thứ 7</option>
+                <option value="Chủ Nhật">Chủ Nhật</option>
+              </select>
+            </div>
+
+            <!-- Dropdown Lọc Ca học -->
+            <div class="select-wrapper" style="width: auto; min-width: 140px;">
+              <select id="filterShiftSelect" style="padding: 6px 30px 6px 12px; font-size: 0.82rem; height: 34px;">
+                <option value="all">⏰ Tất cả Ca học</option>
+                <option value="Khung giờ 1">Khung giờ 1</option>
+                <option value="Khung giờ 2">Khung giờ 2</option>
+                <option value="Khung giờ 3">Khung giờ 3</option>
+              </select>
+            </div>
+
+            <button class="btn btn-sm btn-outline" id="resetFiltersBtn" style="padding: 5px 10px; font-size: 0.8rem;" title="Xóa bộ lọc">
+              <i class="fa-solid fa-xmark"></i> Xóa lọc
             </button>
           </div>
         </div>
 
-        <!-- Schedule Results Grid / Cards -->
+        <!-- CONTAINER HIỂN THỊ DỮ LIỆU -->
         <div class="schedule-results-grid" id="scheduleResultsGrid">
           <!-- Rendered by JS -->
         </div>

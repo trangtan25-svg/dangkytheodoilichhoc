@@ -1,5 +1,6 @@
 /**
- * SCHEDULE TRACKER MODULE (READING FROM GOOGLE SHEET)
+ * SCHEDULE TRACKER & ADMIN APPROVAL MODULE (Texac Center Schedule)
+ * Quản lý danh sách học viên, lọc theo Thứ/Ca/Trạng thái và duyệt/xóa đơn
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -8,8 +9,10 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 let currentFilter = 'all';
+let filterDay = 'all';
+let filterShift = 'all';
 let searchQuery = '';
-let currentViewMode = 'grid'; // 'grid' | 'cards'
+let currentViewMode = 'table'; // 'table' | 'grid' | 'cards' (Mặc định dạng Bảng để cực kỳ dễ nhìn)
 
 async function fetchScheduleData() {
   const container = document.getElementById('scheduleResultsGrid');
@@ -40,12 +43,35 @@ async function fetchScheduleData() {
   }
 
   if (success) {
+    updateDynamicShiftFilter();
     renderScheduleList();
     if (typeof renderSlotsGrid === 'function') {
       renderSlotsGrid();
     }
   } else {
     renderErrorNotice(container, lastErrorMessage);
+  }
+}
+
+function updateDynamicShiftFilter() {
+  const shiftSelect = document.getElementById('filterShiftSelect');
+  if (!shiftSelect) return;
+
+  const currentVal = shiftSelect.value;
+  const shiftsList = (Array.isArray(state.dropdownSlots) && state.dropdownSlots.length > 0)
+    ? Array.from(new Set(state.dropdownSlots.map(s => s.shift || s.label)))
+    : ['Khung giờ 1', 'Khung giờ 2', 'Khung giờ 3'];
+
+  shiftSelect.innerHTML = '<option value="all">⏰ Tất cả Ca học</option>';
+  shiftsList.forEach(sName => {
+    const opt = document.createElement('option');
+    opt.value = sName;
+    opt.textContent = sName;
+    shiftSelect.appendChild(opt);
+  });
+
+  if (shiftsList.includes(currentVal)) {
+    shiftSelect.value = currentVal;
   }
 }
 
@@ -89,7 +115,6 @@ async function confirmStudentRegistration(registrationId, btnElement) {
         showToast(`Đã xác nhận đăng ký thành công cho mã ${registrationId}!`, 'success');
       }
 
-      // Cập nhật trạng thái cục bộ
       const target = (state.registrations || []).find(r => r['Mã Đăng Ký'] === registrationId);
       if (target) {
         target['Trạng Thái'] = 'Đã xác nhận';
@@ -118,228 +143,6 @@ async function confirmStudentRegistration(registrationId, btnElement) {
       btnElement.innerHTML = '<i class="fa-solid fa-circle-check"></i> Xác nhận';
     }
   }
-}
-
-function renderScheduleList() {
-  const container = document.getElementById('scheduleResultsGrid');
-  if (!container) return;
-
-  let items = state.registrations || [];
-
-  // Update Count Badges
-  const countAll = items.length;
-  const countPending = items.filter(i => (i['Trạng Thái'] || '').toString().includes('Chờ')).length;
-  const countConfirmed = items.filter(i => (i['Trạng Thái'] || '').toString().includes('xác nhận')).length;
-
-  const countAllEl = document.getElementById('countAll');
-  const countPendingEl = document.getElementById('countPending');
-  const countConfirmedEl = document.getElementById('countConfirmed');
-
-  if (countAllEl) countAllEl.textContent = countAll;
-  if (countPendingEl) countPendingEl.textContent = countPending;
-  if (countConfirmedEl) countConfirmedEl.textContent = countConfirmed;
-
-  // Filter by Status
-  if (currentFilter !== 'all') {
-    items = items.filter(i => (i['Trạng Thái'] || '').toString().includes(currentFilter));
-  }
-
-  // Filter by Search Query
-  if (searchQuery.trim() !== '') {
-    const q = searchQuery.toLowerCase();
-    items = items.filter(i => 
-      (i['Họ và Tên'] || '').toString().toLowerCase().includes(q) ||
-      (i['Số Điện Thoại / Zalo'] || '').toString().toLowerCase().includes(q) ||
-      (i['Email'] || '').toString().toLowerCase().includes(q) ||
-      (i['Mã Đăng Ký'] || '').toString().toLowerCase().includes(q) ||
-      (i['Các Ca Học Đã Chọn'] || '').toString().toLowerCase().includes(q)
-    );
-  }
-
-  if (items.length === 0) {
-    container.innerHTML = `
-      <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; background: var(--bg-card); border-radius: var(--radius-lg); border: 1px dashed var(--border-color);">
-        <i class="fa-solid fa-folder-open fa-3x" style="color: var(--text-muted); margin-bottom: 12px;"></i>
-        <h4 style="font-size: 1.1rem;">Chưa tìm thấy dữ liệu đăng ký phù hợp</h4>
-        <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">Hãy thử tìm kiếm bằng SĐT khác hoặc chọn tab "Đăng ký Lịch học" để gửi đăng ký mới.</p>
-      </div>
-    `;
-    return;
-  }
-
-  container.innerHTML = '';
-
-  // CHẾ ĐỘ 1: XEM THEO THỨ & CA HỌC (GRID VIEW)
-  if (currentViewMode === 'grid') {
-    container.style.display = 'grid';
-    container.style.gridTemplateColumns = 'repeat(auto-fit, minmax(320px, 1fr))';
-    container.style.gap = '20px';
-
-    // 7 Ngày trong tuần
-    const daysList = CONFIG.DAYS || [
-      { key: 'T2', label: 'Thứ 2' },
-      { key: 'T3', label: 'Thứ 3' },
-      { key: 'T4', label: 'Thứ 4' },
-      { key: 'T5', label: 'Thứ 5' },
-      { key: 'T6', label: 'Thứ 6' },
-      { key: 'T7', label: 'Thứ 7' },
-      { key: 'CN', label: 'Chủ Nhật' }
-    ];
-
-    const shiftsList = (Array.isArray(state.dropdownSlots) && state.dropdownSlots.length > 0)
-      ? Array.from(new Set(state.dropdownSlots.map(s => s.shift || s.label)))
-      : ['Khung giờ 1', 'Khung giờ 2'];
-
-    daysList.forEach(day => {
-      const dayCard = document.createElement('div');
-      dayCard.className = 'card';
-      dayCard.style.padding = '18px';
-
-      let dayHtml = `
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 2px solid var(--primary);">
-          <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--primary);"><i class="fa-solid fa-calendar-day"></i> ${day.label}</h3>
-        </div>
-      `;
-
-      shiftsList.forEach(shiftName => {
-        // Tìm các học viên đăng ký ca học này trong ngày này
-        const matchedStudents = items.filter(reg => {
-          const selectedStr = (reg['Các Ca Học Đã Chọn'] || '').toString();
-          return selectedStr.includes(day.label) && selectedStr.includes(shiftName);
-        });
-
-        const studentCount = matchedStudents.length;
-
-        dayHtml += `
-          <div style="background: var(--bg-input); padding: 12px; border-radius: var(--radius-md); margin-bottom: 12px; border-left: 4px solid ${studentCount >= 9 ? 'var(--danger)' : 'var(--primary)'};">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <span style="font-weight: 700; font-size: 0.9rem; color: var(--text-main);"><i class="fa-solid fa-clock text-warning"></i> ${shiftName}</span>
-              <span class="slot-capacity-badge" style="font-size: 0.8rem; padding: 2px 8px;">${studentCount}/9 người</span>
-            </div>
-        `;
-
-        if (matchedStudents.length === 0) {
-          dayHtml += `<p style="font-size: 0.8rem; color: var(--text-muted); font-style: italic; margin: 4px 0;">Chưa có học viên đăng ký ca này</p>`;
-        } else {
-          dayHtml += `<div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">`;
-          matchedStudents.forEach(st => {
-            const isConfirmed = (st['Trạng Thái'] || '').toString().includes('xác nhận');
-            dayHtml += `
-              <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-card); padding: 8px 10px; border-radius: 6px; font-size: 0.84rem; border: 1px solid var(--border-color);">
-                <div>
-                  <div style="font-weight: 700;">${st['Họ và Tên'] || 'Học viên'}</div>
-                  <div style="font-size: 0.78rem; color: var(--text-muted);"><i class="fa-solid fa-phone"></i> ${st['Số Điện Thoại / Zalo'] || ''} | <span style="color: var(--primary);">${st['Mã Đăng Ký'] || ''}</span></div>
-                </div>
-                <div style="display: flex; gap: 4px; align-items: center;">
-                  ${isConfirmed ? `
-                    <span style="font-size: 0.75rem; color: var(--success); font-weight: 700; background: rgba(16, 185, 129, 0.15); padding: 4px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
-                      <i class="fa-solid fa-check-double"></i> Đã duyệt
-                    </span>
-                  ` : `
-                    <button class="btn btn-sm btn-success confirm-student-btn" data-regid="${st['Mã Đăng Ký']}" style="padding: 4px 8px; font-size: 0.76rem; white-space: nowrap;">
-                      <i class="fa-solid fa-circle-check"></i> Xác nhận
-                    </button>
-                  `}
-                  <button class="btn btn-sm btn-danger delete-student-btn" data-regid="${st['Mã Đăng Ký']}" data-name="${st['Họ và Tên'] || 'Học viên'}" data-rowindex="${st.rowIndex || ''}" style="padding: 4px 8px; font-size: 0.76rem; white-space: nowrap;">
-                    <i class="fa-solid fa-trash-can"></i> Xóa
-                  </button>
-                </div>
-              </div>
-            `;
-          });
-          dayHtml += `</div>`;
-        }
-
-        dayHtml += `</div>`;
-      });
-
-      dayCard.innerHTML = dayHtml;
-      container.appendChild(dayCard);
-    });
-
-  } else {
-    // CHẾ ĐỘ 2: XEM DẠNG THẺ HỌC VIÊN (CARDS VIEW)
-    container.style.display = 'grid';
-    container.style.gridTemplateColumns = 'repeat(auto-fill, minmax(300px, 1fr))';
-    container.style.gap = '20px';
-
-    items.forEach(item => {
-      const isConfirmed = (item['Trạng Thái'] || '').toString().includes('xác nhận');
-      const statusClass = isConfirmed ? 'confirmed' : 'pending';
-      const statusIcon = isConfirmed ? 'fa-circle-check' : 'fa-clock';
-
-      const card = document.createElement('div');
-      card.className = 'student-card';
-      card.innerHTML = `
-        <div class="student-card-header">
-          <span style="font-weight: 800; font-size: 0.85rem; color: var(--primary);">${item['Mã Đăng Ký'] || 'DK-REG'}</span>
-          <span class="status-badge ${statusClass}">
-            <i class="fa-solid ${statusIcon}"></i> ${item['Trạng Thái'] || 'Chờ xác nhận'}
-          </span>
-        </div>
-
-        <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 8px;">${item['Họ và Tên'] || 'Học viên'}</h3>
-        
-        <div style="font-size: 0.88rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px;">
-          <div><i class="fa-solid fa-phone" style="width: 18px;"></i> ${item['Số Điện Thoại / Zalo'] || 'N/A'}</div>
-          ${item['Email'] ? `<div><i class="fa-solid fa-envelope" style="width: 18px;"></i> ${item['Email']}</div>` : ''}
-          ${item['Loại Học Viên'] ? `<div><i class="fa-solid fa-fire" style="width: 18px;"></i> ${item['Loại Học Viên']} (${item['Số Buổi / Tuần'] || ''})</div>` : ''}
-        </div>
-
-        <div style="background: var(--bg-input); padding: 10px 12px; border-radius: var(--radius-md); font-size: 0.83rem; margin-bottom: 12px;">
-          <span style="font-weight: 700; color: var(--text-main); display: block; margin-bottom: 4px;">
-            <i class="fa-solid fa-calendar-week text-primary"></i> Lịch học đăng ký:
-          </span>
-          <div style="color: var(--text-muted); line-height: 1.4;">
-            ${item['Các Ca Học Đã Chọn'] || 'Chưa chọn ca'}
-          </div>
-        </div>
-
-        ${item['Mục Tiêu Học Tập'] ? `
-          <div style="margin-bottom: 14px; font-size: 0.8rem; color: var(--text-muted);">
-            <strong>Mục tiêu:</strong> ${item['Mục Tiêu Học Tập']}
-          </div>
-        ` : ''}
-
-        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-color); display: flex; justify-content: flex-end; gap: 8px; align-items: center;">
-          ${isConfirmed ? `
-            <span style="font-size: 0.8rem; color: var(--success); font-weight: 700; background: rgba(16, 185, 129, 0.15); padding: 6px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px;">
-              <i class="fa-solid fa-check-double"></i> Đã xác nhận đăng ký
-            </span>
-          ` : `
-            <button class="btn btn-sm btn-success confirm-student-btn" data-regid="${item['Mã Đăng Ký']}">
-              <i class="fa-solid fa-circle-check"></i> Xác nhận Đăng ký
-            </button>
-          `}
-          <button class="btn btn-sm btn-danger delete-student-btn" data-regid="${item['Mã Đăng Ký']}" data-name="${item['Họ và Tên'] || 'Học viên'}" data-rowindex="${item.rowIndex || ''}">
-            <i class="fa-solid fa-trash-can"></i> Xóa
-          </button>
-        </div>
-      `;
-
-      container.appendChild(card);
-    });
-  }
-
-  // Gắn sự kiện cho các Nút Xác Nhận của Nhân viên
-  document.querySelectorAll('.confirm-student-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const regId = btn.dataset.regid;
-      confirmStudentRegistration(regId, btn);
-    });
-  });
-
-  // Gắn sự kiện cho các Nút Xóa Đơn Đăng ký
-  document.querySelectorAll('.delete-student-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const regId = btn.dataset.regid;
-      const studentName = btn.dataset.name;
-      const rowIndex = btn.dataset.rowindex;
-      deleteStudentRegistration(regId, studentName, rowIndex, btn);
-    });
-  });
 }
 
 // Hàm Nhân viên Xóa Đơn Đăng ký học viên -> Đồng bộ trực tiếp xóa dòng trên Google Sheet
@@ -388,18 +191,387 @@ async function deleteStudentRegistration(registrationId, studentName, rowIndex, 
   }
 }
 
+function renderScheduleList() {
+  const container = document.getElementById('scheduleResultsGrid');
+  if (!container) return;
+
+  let allRegistrations = state.registrations || [];
+
+  // Update Thống kê Dashboard
+  const countAll = allRegistrations.length;
+  const countPending = allRegistrations.filter(i => (i['Trạng Thái'] || '').toString().includes('Chờ')).length;
+  const countConfirmed = allRegistrations.filter(i => (i['Trạng Thái'] || '').toString().includes('xác nhận')).length;
+  
+  let totalSlotsPicked = 0;
+  allRegistrations.forEach(r => {
+    const str = (r['Các Ca Học Đã Chọn'] || '').toString();
+    if (str) {
+      totalSlotsPicked += str.split(',').filter(s => s.trim()).length;
+    }
+  });
+
+  const countAllEl = document.getElementById('countAll');
+  const countPendingEl = document.getElementById('countPending');
+  const countConfirmedEl = document.getElementById('countConfirmed');
+
+  const statTotal = document.getElementById('statTotalStudents');
+  const statPending = document.getElementById('statPendingStudents');
+  const statConfirmed = document.getElementById('statConfirmedStudents');
+  const statSlots = document.getElementById('statTotalSlotsPicked');
+
+  if (countAllEl) countAllEl.textContent = countAll;
+  if (countPendingEl) countPendingEl.textContent = countPending;
+  if (countConfirmedEl) countConfirmedEl.textContent = countConfirmed;
+
+  if (statTotal) statTotal.textContent = countAll;
+  if (statPending) statPending.textContent = countPending;
+  if (statConfirmed) statConfirmed.textContent = countConfirmed;
+  if (statSlots) statSlots.textContent = totalSlotsPicked;
+
+  let items = [...allRegistrations];
+
+  // 1. Lọc theo Trạng Thái (Tab Pill)
+  if (currentFilter !== 'all') {
+    items = items.filter(i => (i['Trạng Thái'] || '').toString().includes(currentFilter));
+  }
+
+  // 2. Lọc theo Thứ (Dropdown)
+  if (filterDay !== 'all') {
+    items = items.filter(i => (i['Các Ca Học Đã Chọn'] || '').toString().includes(filterDay));
+  }
+
+  // 3. Lọc theo Ca học (Dropdown)
+  if (filterShift !== 'all') {
+    items = items.filter(i => (i['Các Ca Học Đã Chọn'] || '').toString().includes(filterShift));
+  }
+
+  // 4. Lọc theo Từ khóa tìm kiếm
+  if (searchQuery.trim() !== '') {
+    const q = searchQuery.toLowerCase();
+    items = items.filter(i => 
+      (i['Họ và Tên'] || '').toString().toLowerCase().includes(q) ||
+      (i['Số Điện Thoại / Zalo'] || '').toString().toLowerCase().includes(q) ||
+      (i['Email'] || '').toString().toLowerCase().includes(q) ||
+      (i['Mã Đăng Ký'] || '').toString().toLowerCase().includes(q) ||
+      (i['Các Ca Học Đã Chọn'] || '').toString().toLowerCase().includes(q)
+    );
+  }
+
+  if (items.length === 0) {
+    container.innerHTML = `
+      <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; background: var(--bg-card); border-radius: var(--radius-lg); border: 1px dashed var(--border-color);">
+        <i class="fa-solid fa-folder-open fa-3x" style="color: var(--text-muted); margin-bottom: 12px;"></i>
+        <h4 style="font-size: 1.1rem; font-weight: 700;">Không tìm thấy dữ liệu đăng ký phù hợp</h4>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">Hãy thử chọn lại bộ lọc hoặc nhập từ khóa tìm kiếm khác.</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = '';
+
+  // CHẾ ĐỘ 1: DẠNG BẢNG QUẢN TRỊ DỄ NHÌN (TABLE VIEW - MẶC ĐỊNH)
+  if (currentViewMode === 'table') {
+    container.style.display = 'block';
+    
+    const tableCard = document.createElement('div');
+    tableCard.className = 'card';
+    tableCard.style.padding = '0';
+    tableCard.style.overflow = 'hidden';
+
+    let tableHtml = `
+      <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem;">
+          <thead>
+            <tr style="background: rgba(255,255,255,0.04); border-bottom: 2px solid var(--border-color); color: var(--text-muted); text-transform: uppercase; font-size: 0.76rem; letter-spacing: 0.5px;">
+              <th style="padding: 14px 16px; width: 60px;">STT</th>
+              <th style="padding: 14px 16px; min-width: 180px;">Học Viên</th>
+              <th style="padding: 14px 16px; min-width: 160px;">Liên Hệ</th>
+              <th style="padding: 14px 16px; min-width: 250px;">Các Ca Học Đăng Ký</th>
+              <th style="padding: 14px 16px; min-width: 130px;">Thời Gian</th>
+              <th style="padding: 14px 16px; width: 130px;">Trạng Thái</th>
+              <th style="padding: 14px 16px; width: 150px; text-align: center;">Hành Động</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    items.forEach((item, index) => {
+      const isConfirmed = (item['Trạng Thái'] || '').toString().includes('xác nhận');
+      const phone = (item['Số Điện Thoại / Zalo'] || '').toString().trim();
+      const cleanPhone = phone.replace(/[^0-9]/g, '');
+
+      // Parse ca học thành các badge pills nhỏ gọn
+      const rawSlotsStr = (item['Các Ca Học Đã Chọn'] || '').toString();
+      const slotArray = rawSlotsStr.split(',').map(s => s.trim()).filter(s => s);
+      const slotPills = slotArray.map(slot => {
+        return `<span style="display: inline-block; background: rgba(79, 70, 229, 0.12); color: var(--primary); font-weight: 600; font-size: 0.76rem; padding: 3px 8px; border-radius: 4px; margin: 2px 2px 2px 0; border: 1px solid rgba(79, 70, 229, 0.2);"><i class="fa-solid fa-clock text-warning" style="margin-right: 3px;"></i>${slot}</span>`;
+      }).join('');
+
+      tableHtml += `
+        <tr style="border-bottom: 1px solid var(--border-color); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+          <td style="padding: 14px 16px; font-weight: 700; color: var(--text-muted);">${index + 1}</td>
+          
+          <td style="padding: 14px 16px;">
+            <div style="font-weight: 800; font-size: 0.95rem; color: var(--text-main);">${item['Họ và Tên'] || 'Học viên'}</div>
+            <div style="font-size: 0.78rem; color: var(--primary); font-weight: 700; margin-top: 2px;">
+              ${item['Mã Đăng Ký'] || 'DK-REG'} ${item['Loại Học Viên'] ? `• <span style="color: var(--text-muted);">${item['Loại Học Viên']}</span>` : ''}
+            </div>
+          </td>
+
+          <td style="padding: 14px 16px;">
+            <div style="font-weight: 700; font-size: 0.88rem;">${phone || 'N/A'}</div>
+            <div style="display: flex; gap: 6px; margin-top: 4px;">
+              ${cleanPhone ? `
+                <a href="https://zalo.me/${cleanPhone}" target="_blank" class="btn btn-sm btn-outline" style="padding: 2px 6px; font-size: 0.72rem; color: #0068ff; border-color: rgba(0,104,255,0.3);">
+                  <i class="fa-solid fa-comment-dots"></i> Zalo
+                </a>
+                <a href="tel:${cleanPhone}" class="btn btn-sm btn-outline" style="padding: 2px 6px; font-size: 0.72rem; color: var(--success); border-color: rgba(16,185,129,0.3);">
+                  <i class="fa-solid fa-phone"></i> Gọi
+                </a>
+              ` : ''}
+            </div>
+          </td>
+
+          <td style="padding: 14px 16px;">
+            <div style="line-height: 1.4;">
+              ${slotPills || '<span style="color: var(--text-muted); font-style: italic;">Chưa chọn ca</span>'}
+            </div>
+          </td>
+
+          <td style="padding: 14px 16px; font-size: 0.78rem; color: var(--text-muted);">
+            ${item['Thời Gian Đăng Ký'] || '—'}
+          </td>
+
+          <td style="padding: 14px 16px;">
+            <span class="badge ${isConfirmed ? 'success' : 'warning'}" style="padding: 5px 10px; font-size: 0.76rem; border-radius: 6px; font-weight: 700;">
+              ${isConfirmed ? '<i class="fa-solid fa-check-double"></i> Đã duyệt' : '<i class="fa-solid fa-clock"></i> Chờ duyệt'}
+            </span>
+          </td>
+
+          <td style="padding: 14px 16px; text-align: center;">
+            <div style="display: flex; gap: 6px; justify-content: center; align-items: center;">
+              ${!isConfirmed ? `
+                <button class="btn btn-sm btn-success confirm-student-btn" data-regid="${item['Mã Đăng Ký']}" style="padding: 5px 10px; font-size: 0.78rem; white-space: nowrap;">
+                  <i class="fa-solid fa-circle-check"></i> Duyệt
+                </button>
+              ` : ''}
+              <button class="btn btn-sm btn-danger delete-student-btn" data-regid="${item['Mã Đăng Ký']}" data-name="${item['Họ và Tên'] || 'Học viên'}" data-rowindex="${item.rowIndex || ''}" style="padding: 5px 10px; font-size: 0.78rem; white-space: nowrap;">
+                <i class="fa-solid fa-trash-can"></i> Xóa
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    });
+
+    tableHtml += `
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    tableCard.innerHTML = tableHtml;
+    container.appendChild(tableCard);
+
+  } else if (currentViewMode === 'grid') {
+    // CHẾ ĐỘ 2: XEM THEO THỨ & CA HỌC (GRID VIEW)
+    container.style.display = 'grid';
+    container.style.gridTemplateColumns = 'repeat(auto-fit, minmax(320px, 1fr))';
+    container.style.gap = '20px';
+
+    const daysList = CONFIG.DAYS || [
+      { key: 'T2', label: 'Thứ 2' },
+      { key: 'T3', label: 'Thứ 3' },
+      { key: 'T4', label: 'Thứ 4' },
+      { key: 'T5', label: 'Thứ 5' },
+      { key: 'T6', label: 'Thứ 6' },
+      { key: 'T7', label: 'Thứ 7' },
+      { key: 'CN', label: 'Chủ Nhật' }
+    ];
+
+    const shiftsList = (Array.isArray(state.dropdownSlots) && state.dropdownSlots.length > 0)
+      ? Array.from(new Set(state.dropdownSlots.map(s => s.shift || s.label)))
+      : ['Khung giờ 1', 'Khung giờ 2'];
+
+    daysList.forEach(day => {
+      const dayCard = document.createElement('div');
+      dayCard.className = 'card';
+      dayCard.style.padding = '18px';
+
+      let dayHtml = `
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 2px solid var(--primary);">
+          <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--primary);"><i class="fa-solid fa-calendar-day"></i> ${day.label}</h3>
+        </div>
+      `;
+
+      shiftsList.forEach(shiftName => {
+        const matchedStudents = items.filter(reg => {
+          const selectedStr = (reg['Các Ca Học Đã Chọn'] || '').toString();
+          return selectedStr.includes(day.label) && selectedStr.includes(shiftName);
+        });
+
+        const studentCount = matchedStudents.length;
+
+        dayHtml += `
+          <div style="background: var(--bg-input); padding: 12px; border-radius: var(--radius-md); margin-bottom: 12px; border-left: 4px solid ${studentCount >= 9 ? 'var(--danger)' : 'var(--primary)'};">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-weight: 700; font-size: 0.9rem; color: var(--text-main);"><i class="fa-solid fa-clock text-warning"></i> ${shiftName}</span>
+              <span class="slot-capacity-badge" style="font-size: 0.8rem; padding: 2px 8px;">${studentCount}/9 người</span>
+            </div>
+        `;
+
+        if (matchedStudents.length === 0) {
+          dayHtml += `<p style="font-size: 0.8rem; color: var(--text-muted); font-style: italic; margin: 4px 0;">Chưa có học viên đăng ký ca này</p>`;
+        } else {
+          dayHtml += `<div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">`;
+          matchedStudents.forEach(st => {
+            const isConfirmed = (st['Trạng Thái'] || '').toString().includes('xác nhận');
+            dayHtml += `
+              <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-card); padding: 8px 10px; border-radius: 6px; font-size: 0.84rem; border: 1px solid var(--border-color);">
+                <div>
+                  <div style="font-weight: 700;">${st['Họ và Tên'] || 'Học viên'}</div>
+                  <div style="font-size: 0.78rem; color: var(--text-muted);"><i class="fa-solid fa-phone"></i> ${st['Số Điện Thoại / Zalo'] || ''} | <span style="color: var(--primary);">${st['Mã Đăng Ký'] || ''}</span></div>
+                </div>
+                <div style="display: flex; gap: 4px; align-items: center;">
+                  ${isConfirmed ? `
+                    <span style="font-size: 0.75rem; color: var(--success); font-weight: 700; background: rgba(16, 185, 129, 0.15); padding: 4px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
+                      <i class="fa-solid fa-check-double"></i> Đã duyệt
+                    </span>
+                  ` : `
+                    <button class="btn btn-sm btn-success confirm-student-btn" data-regid="${st['Mã Đăng Ký']}" style="padding: 4px 8px; font-size: 0.76rem; white-space: nowrap;">
+                      <i class="fa-solid fa-circle-check"></i> Duyệt
+                    </button>
+                  `}
+                  <button class="btn btn-sm btn-danger delete-student-btn" data-regid="${st['Mã Đăng Ký']}" data-name="${st['Họ và Tên'] || 'Học viên'}" data-rowindex="${st.rowIndex || ''}" style="padding: 4px 8px; font-size: 0.76rem; white-space: nowrap;">
+                    <i class="fa-solid fa-trash-can"></i> Xóa
+                  </button>
+                </div>
+              </div>
+            `;
+          });
+          dayHtml += `</div>`;
+        }
+
+        dayHtml += `</div>`;
+      });
+
+      dayCard.innerHTML = dayHtml;
+      container.appendChild(dayCard);
+    });
+
+  } else {
+    // CHẾ ĐỘ 3: XEM DẠNG THẺ HỌC VIÊN (CARDS VIEW)
+    container.style.display = 'grid';
+    container.style.gridTemplateColumns = 'repeat(auto-fill, minmax(300px, 1fr))';
+    container.style.gap = '20px';
+
+    items.forEach(item => {
+      const isConfirmed = (item['Trạng Thái'] || '').toString().includes('xác nhận');
+      const statusClass = isConfirmed ? 'confirmed' : 'pending';
+      const statusIcon = isConfirmed ? 'fa-circle-check' : 'fa-clock';
+
+      const card = document.createElement('div');
+      card.className = 'student-card';
+      card.innerHTML = `
+        <div class="student-card-header">
+          <span style="font-weight: 800; font-size: 0.85rem; color: var(--primary);">${item['Mã Đăng Ký'] || 'DK-REG'}</span>
+          <span class="status-badge ${statusClass}">
+            <i class="fa-solid ${statusIcon}"></i> ${item['Trạng Thái'] || 'Chờ xác nhận'}
+          </span>
+        </div>
+
+        <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 8px;">${item['Họ và Tên'] || 'Học viên'}</h3>
+        
+        <div style="font-size: 0.88rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px;">
+          <div><i class="fa-solid fa-phone" style="width: 18px;"></i> ${item['Số Điện Thoại / Zalo'] || 'N/A'}</div>
+          ${item['Email'] ? `<div><i class="fa-solid fa-envelope" style="width: 18px;"></i> ${item['Email']}</div>` : ''}
+          ${item['Loại Học Viên'] ? `<div><i class="fa-solid fa-fire" style="width: 18px;"></i> ${item['Loại Học Viên']} (${item['Số Buổi / Tuần'] || ''})</div>` : ''}
+        </div>
+
+        <div style="background: var(--bg-input); padding: 10px 12px; border-radius: var(--radius-md); font-size: 0.83rem; margin-bottom: 12px;">
+          <span style="font-weight: 700; color: var(--text-main); display: block; margin-bottom: 4px;">
+            <i class="fa-solid fa-calendar-week text-primary"></i> Lịch học đăng ký:
+          </span>
+          <div style="color: var(--text-muted); line-height: 1.4;">
+            ${item['Các Ca Học Đã Chọn'] || 'Chưa chọn ca'}
+          </div>
+        </div>
+
+        ${item['Mục Tiêu Học Tập'] ? `
+          <div style="margin-bottom: 14px; font-size: 0.8rem; color: var(--text-muted);">
+            <strong>Mục tiêu:</strong> ${item['Mục Tiêu Học Tập']}
+          </div>
+        ` : ''}
+
+        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-color); display: flex; justify-content: flex-end; gap: 8px; align-items: center;">
+          ${!isConfirmed ? `
+            <button class="btn btn-sm btn-success confirm-student-btn" data-regid="${item['Mã Đăng Ký']}">
+              <i class="fa-solid fa-circle-check"></i> Duyệt đơn
+            </button>
+          ` : `
+            <span style="font-size: 0.8rem; color: var(--success); font-weight: 700; background: rgba(16, 185, 129, 0.15); padding: 6px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px;">
+              <i class="fa-solid fa-check-double"></i> Đã duyệt
+            </span>
+          `}
+          <button class="btn btn-sm btn-danger delete-student-btn" data-regid="${item['Mã Đăng Ký']}" data-name="${item['Họ và Tên'] || 'Học viên'}" data-rowindex="${item.rowIndex || ''}">
+            <i class="fa-solid fa-trash-can"></i> Xóa
+          </button>
+        </div>
+      `;
+
+      container.appendChild(card);
+    });
+  }
+
+  // Gắn sự kiện cho các Nút Xác Nhận Duyệt của Nhân viên
+  document.querySelectorAll('.confirm-student-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const regId = btn.dataset.regid;
+      confirmStudentRegistration(regId, btn);
+    });
+  });
+
+  // Gắn sự kiện cho các Nút Xóa Đơn Đăng ký
+  document.querySelectorAll('.delete-student-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const regId = btn.dataset.regid;
+      const studentName = btn.dataset.name;
+      const rowIndex = btn.dataset.rowindex;
+      deleteStudentRegistration(regId, studentName, rowIndex, btn);
+    });
+  });
+}
+
 function setupScheduleEventListeners() {
   const searchInput = document.getElementById('searchInput');
   const searchBtn = document.getElementById('searchBtn');
   const refreshBtn = document.getElementById('refreshScheduleBtn');
   const filterBtns = document.querySelectorAll('.filter-btn');
+  const filterDaySelect = document.getElementById('filterDaySelect');
+  const filterShiftSelect = document.getElementById('filterShiftSelect');
+  const resetFiltersBtn = document.getElementById('resetFiltersBtn');
+
+  const viewTableBtn = document.getElementById('viewModeTableBtn');
   const viewGridBtn = document.getElementById('viewModeGridBtn');
   const viewCardsBtn = document.getElementById('viewModeCardsBtn');
 
-  if (viewGridBtn && viewCardsBtn) {
+  // Chuyển đổi 3 Chế độ Xem
+  if (viewTableBtn && viewGridBtn && viewCardsBtn) {
+    viewTableBtn.addEventListener('click', () => {
+      currentViewMode = 'table';
+      viewTableBtn.classList.add('active');
+      viewGridBtn.classList.remove('active');
+      viewCardsBtn.classList.remove('active');
+      renderScheduleList();
+    });
+
     viewGridBtn.addEventListener('click', () => {
       currentViewMode = 'grid';
       viewGridBtn.classList.add('active');
+      viewTableBtn.classList.remove('active');
       viewCardsBtn.classList.remove('active');
       renderScheduleList();
     });
@@ -407,11 +579,13 @@ function setupScheduleEventListeners() {
     viewCardsBtn.addEventListener('click', () => {
       currentViewMode = 'cards';
       viewCardsBtn.classList.add('active');
+      viewTableBtn.classList.remove('active');
       viewGridBtn.classList.remove('active');
       renderScheduleList();
     });
   }
 
+  // Tra cứu tìm kiếm
   if (searchBtn && searchInput) {
     searchBtn.addEventListener('click', () => {
       searchQuery = searchInput.value;
@@ -426,6 +600,7 @@ function setupScheduleEventListeners() {
     });
   }
 
+  // Nút Làm mới dữ liệu
   if (refreshBtn) {
     refreshBtn.addEventListener('click', () => {
       fetchScheduleData();
@@ -435,6 +610,7 @@ function setupScheduleEventListeners() {
     });
   }
 
+  // Lọc theo Tab Trạng thái Pill
   filterBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       filterBtns.forEach(b => b.classList.remove('active'));
@@ -443,4 +619,44 @@ function setupScheduleEventListeners() {
       renderScheduleList();
     });
   });
+
+  // Dropdown Lọc theo Thứ
+  if (filterDaySelect) {
+    filterDaySelect.addEventListener('change', () => {
+      filterDay = filterDaySelect.value;
+      renderScheduleList();
+    });
+  }
+
+  // Dropdown Lọc theo Ca học
+  if (filterShiftSelect) {
+    filterShiftSelect.addEventListener('change', () => {
+      filterShift = filterShiftSelect.value;
+      renderScheduleList();
+    });
+  }
+
+  // Nút Reset Xóa Bộ Lọc
+  if (resetFiltersBtn) {
+    resetFiltersBtn.addEventListener('click', () => {
+      currentFilter = 'all';
+      filterDay = 'all';
+      filterShift = 'all';
+      searchQuery = '';
+
+      if (searchInput) searchInput.value = '';
+      if (filterDaySelect) filterDaySelect.value = 'all';
+      if (filterShiftSelect) filterShiftSelect.value = 'all';
+
+      filterBtns.forEach(b => {
+        if (b.dataset.filter === 'all') b.classList.add('active');
+        else b.classList.remove('active');
+      });
+
+      renderScheduleList();
+      if (typeof showToast === 'function') {
+        showToast('Đã xóa tất cả bộ lọc!', 'info');
+      }
+    });
+  }
 }
