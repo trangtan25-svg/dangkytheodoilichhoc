@@ -87,7 +87,7 @@ function getSheet(sheetName) {
   if (sheet.getLastRow() === 0) {
     if (sheetName === SHEET_REGISTRATIONS) {
       sheet.appendRow([
-        'Mã Đăng Ký', 'Họ và Tên', 'Số Điện Thoại / Zalo', 'Email', 
+        'Mã Đăng Ký', 'Họ và Tên', 'Số Điện Thoại / Zalo', 'Chi Nhánh', 
         'Loại Học Viên', 'Số Buổi / Tuần', 'Các Ca Học Đã Chọn', 
         'Mục Tiêu Học Tập', 'Ghi Chú', 'Thời Gian Đăng Ký', 'Trạng Thái'
       ]);
@@ -140,7 +140,7 @@ function doGet(e) {
         item['Mã Đăng Ký'] = item['Mã Đăng Ký'] || item['MaDK'] || item['Mã'] || row[0] || ('DK-' + (index + 1));
         item['Họ và Tên'] = item['Họ và Tên'] || item['Họ tên'] || item['Full Name'] || row[1] || 'Học viên';
         item['Số Điện Thoại / Zalo'] = item['Số Điện Thoại / Zalo'] || item['Số điện thoại'] || item['SĐT'] || item['Phone'] || row[2] || 'N/A';
-        item['Email'] = item['Email'] || row[3] || '';
+        item['Chi Nhánh'] = item['Chi Nhánh'] || item['Chi nhánh'] || item['Email'] || row[3] || '';
         item['Loại Học Viên'] = item['Loại Học Viên'] || item['Loại học viên'] || row[4] || '';
         item['Số Buổi / Tuần'] = item['Số Buổi / Tuần'] || item['Số buổi'] || row[5] || '';
         item['Các Ca Học Đã Chọn'] = item['Các Ca Học Đã Chọn'] || item['Lịch học'] || item['Ca học'] || row[6] || '';
@@ -608,7 +608,7 @@ function doPost(e) {
       registrationId,
       contents.fullName || '',
       contents.phone || '',
-      contents.email || '',
+      contents.branch || contents['Chi Nhánh'] || contents.email || '',
       contents.studentType || 'Cấp tốc',
       contents.sessionsPerWeek || '4 buổi/tuần',
       requestedSlots.join(', '),

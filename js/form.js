@@ -259,7 +259,8 @@ function setupFormEventListeners() {
 
     const fullName = document.getElementById('fullName').value.trim();
     const phone = document.getElementById('phone').value.trim();
-    const email = document.getElementById('email').value.trim();
+    const branchEl = document.getElementById('branch');
+    const branch = branchEl ? branchEl.value.trim() : '';
     const studentTypeSelect = document.getElementById('studentType');
     const sessionsSelect = document.getElementById('sessionsPerWeek');
     const studentType = studentTypeSelect ? studentTypeSelect.value : 'Cấp tốc';
@@ -269,6 +270,11 @@ function setupFormEventListeners() {
 
     if (!fullName || !phone) {
       showToast('Vui lòng nhập Họ tên và Số điện thoại!', 'error');
+      return;
+    }
+
+    if (!branch) {
+      showToast('Vui lòng nhập Chi nhánh đăng ký!', 'error');
       return;
     }
 
@@ -287,7 +293,8 @@ function setupFormEventListeners() {
     const payload = {
       fullName,
       phone,
-      email,
+      branch,
+      "Chi Nhánh": branch,
       studentType,
       sessionsPerWeek,
       selectedSlots: state.selectedSlots.map(s => s.label),
@@ -322,7 +329,8 @@ function setupFormEventListeners() {
           "Mã Đăng Ký": regId,
           "Họ và Tên": fullName,
           "Số Điện Thoại / Zalo": phone,
-          "Email": email,
+          "Chi Nhánh": branch,
+          "Chi nhánh": branch,
           "Loại Học Viên": studentType,
           "Số Buổi / Tuần": sessionsPerWeek,
           "Các Ca Học Đã Chọn": payload.selectedSlots.join(', '),

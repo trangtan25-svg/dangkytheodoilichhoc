@@ -264,7 +264,7 @@ function renderScheduleList() {
     items = items.filter(i => 
       (i['Họ và Tên'] || '').toString().toLowerCase().includes(q) ||
       (i['Số Điện Thoại / Zalo'] || '').toString().toLowerCase().includes(q) ||
-      (i['Email'] || '').toString().toLowerCase().includes(q) ||
+      (i['Chi Nhánh'] || i['Chi nhánh'] || i['Email'] || '').toString().toLowerCase().includes(q) ||
       (i['Mã Đăng Ký'] || '').toString().toLowerCase().includes(q) ||
       (i['Các Ca Học Đã Chọn'] || '').toString().toLowerCase().includes(q)
     );
@@ -298,7 +298,7 @@ function renderScheduleList() {
           <thead>
             <tr style="background: rgba(255,255,255,0.04); border-bottom: 2px solid var(--border-color); color: var(--text-muted); text-transform: uppercase; font-size: 0.76rem; letter-spacing: 0.5px;">
               <th style="padding: 14px 16px; width: 60px;">STT</th>
-              <th style="padding: 14px 16px; min-width: 180px;">Học Viên</th>
+              <th style="padding: 14px 16px; min-width: 180px;">Học Viên & Chi Nhánh</th>
               <th style="padding: 14px 16px; min-width: 160px;">Liên Hệ</th>
               <th style="padding: 14px 16px; min-width: 250px;">Các Ca Học Đăng Ký</th>
               <th style="padding: 14px 16px; min-width: 130px;">Thời Gian</th>
@@ -313,6 +313,7 @@ function renderScheduleList() {
       const isConfirmed = (item['Trạng Thái'] || '').toString().includes('xác nhận');
       const phone = (item['Số Điện Thoại / Zalo'] || '').toString().trim();
       const cleanPhone = phone.replace(/[^0-9]/g, '');
+      const branchVal = item['Chi Nhánh'] || item['Chi nhánh'] || item['Email'] || '';
 
       // Parse ca học thành các badge pills nhỏ gọn
       const rawSlotsStr = (item['Các Ca Học Đã Chọn'] || '').toString();
@@ -328,7 +329,7 @@ function renderScheduleList() {
           <td style="padding: 14px 16px;">
             <div style="font-weight: 800; font-size: 0.95rem; color: var(--text-main);">${item['Họ và Tên'] || 'Học viên'}</div>
             <div style="font-size: 0.78rem; color: var(--primary); font-weight: 700; margin-top: 2px;">
-              ${item['Mã Đăng Ký'] || 'DK-REG'} ${item['Loại Học Viên'] ? `• <span style="color: var(--text-muted);">${item['Loại Học Viên']}</span>` : ''}
+              ${item['Mã Đăng Ký'] || 'DK-REG'} ${branchVal ? `• <span style="color: var(--text-main); font-weight: 700;"><i class="fa-solid fa-location-dot text-danger"></i> ${branchVal}</span>` : ''} ${item['Loại Học Viên'] ? `• <span style="color: var(--text-muted);">${item['Loại Học Viên']}</span>` : ''}
             </div>
           </td>
 
@@ -493,6 +494,7 @@ function renderScheduleList() {
       const isConfirmed = (item['Trạng Thái'] || '').toString().includes('xác nhận');
       const statusClass = isConfirmed ? 'confirmed' : 'pending';
       const statusIcon = isConfirmed ? 'fa-circle-check' : 'fa-clock';
+      const branchVal = item['Chi Nhánh'] || item['Chi nhánh'] || item['Email'] || '';
 
       const card = document.createElement('div');
       card.className = 'student-card';
@@ -508,7 +510,7 @@ function renderScheduleList() {
         
         <div style="font-size: 0.88rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px;">
           <div><i class="fa-solid fa-phone" style="width: 18px;"></i> ${item['Số Điện Thoại / Zalo'] || 'N/A'}</div>
-          ${item['Email'] ? `<div><i class="fa-solid fa-envelope" style="width: 18px;"></i> ${item['Email']}</div>` : ''}
+          ${branchVal ? `<div><i class="fa-solid fa-location-dot text-danger" style="width: 18px;"></i> Chi nhánh: <strong>${branchVal}</strong></div>` : ''}
           ${item['Loại Học Viên'] ? `<div><i class="fa-solid fa-fire" style="width: 18px;"></i> ${item['Loại Học Viên']} (${item['Số Buổi / Tuần'] || ''})</div>` : ''}
         </div>
 
