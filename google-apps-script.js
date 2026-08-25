@@ -1,22 +1,8 @@
 /**
- * GOOGLE APPS SCRIPT KẾT NỐI 2 CHIỀU CHO WEBSITE ĐĂNG KÝ LỊCH HỌC
- * Google Sheet ID: 1bv1twT1xlmRYWbEI3uzlEV-te5-pbtm5qIw7cqJa6HA
- * 
- * HƯỚNG DẪN CÀI ĐẶT:
- * 1. Mở Google Sheet: https://docs.google.com/spreadsheets/d/1bv1twT1xlmRYWbEI3uzlEV-te5-pbtm5qIw7cqJa6HA/edit
- * 2. Vào Tiện ích mở rộng (Extensions) -> Apps Script
- * 3. Dán toàn bộ mã này vào và bấm Lưu (Ctrl + S)
- * 4. Bấm "Triển khai" (Deploy) -> "Thực thi dưới dạng ứng dụng web" (New deployment -> Web App)
- *    - Thực thi dưới tên: Tôi (Execute as: Me)
- *    - Ai có quyền truy cập: Bất kỳ ai (Who has access: Anyone)
- * 5. Coppy URL Web App nhận được và dán vào biến GOOGLE_SCRIPT_URL trong Vercel Environment Variables!
- */
-
-/**
- * GOOGLE APPS SCRIPT KẾT NỐI 2 CHIỀU ĐỒNG BỘ ĐỘNG & CHỐNG QUÁ TẢI (LOCKSERVICE)
- * Quản lý 2 trang tính:
- * 1. DangKyLichHoc : Lưu trữ danh sách học viên đăng ký
- * 2. Dropdown       : Chứa danh sách các Ca học / Khung giờ tùy chỉnh
+ * GOOGLE APPS SCRIPT KẾT NỐI 2 CHIỀU CHO WEBSITE TEXAC CENTER SCHEDULE
+ * Database ID: 1bv1twT1xlmRYWbEI3uzlEV-te5-pbtm5qIw7cqJa6HA
+ * Sheet Đăng ký: DangKyLichHoc
+ * Sheet Khung giờ: quanlykhunggio
  */
 
 const SPREADSHEET_ID = '1bv1twT1xlmRYWbEI3uzlEV-te5-pbtm5qIw7cqJa6HA';
@@ -24,7 +10,28 @@ const SHEET_REGISTRATIONS = 'DangKyLichHoc';
 const SHEET_DROPDOWN = 'quanlykhunggio';
 const MAX_SLOT_CAPACITY = 9;
 
-// 1. Helper lấy trang tính theo tên (Truy xuất thông minh theo Spreadsheet ID & Tự nhận diện tên sheet)
+// 0. Helper Xóa Dấu Tiếng Việt chuẩn xác
+function removeVietnameseTones(str) {
+  if (!str) return '';
+  str = str.toString().trim();
+  str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+  str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+  str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+  str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+  str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+  str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
+  str = str.replace(/đ/g, "d");
+  str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
+  str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, "E");
+  str = str.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, "I");
+  str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, "O");
+  str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
+  str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, "Y");
+  str = str.replace(/Đ/g, "D");
+  return str.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+// 1. Helper lấy trang tính theo tên (Tìm kiếm 3 cấp độ siêu thông minh)
 function getSheet(sheetName) {
   let ss;
   try {
@@ -33,16 +40,21 @@ function getSheet(sheetName) {
     ss = SpreadsheetApp.getActiveSpreadsheet();
   }
 
+  if (!ss) {
+    throw new Error("Không thể kết nối đến Google Spreadsheet ID: " + SPREADSHEET_ID);
+  }
+
+  // Cấp độ 1: Tìm đúng tên chính xác
   let sheet = ss.getSheetByName(sheetName);
 
-  // Nếu tìm chính xác chưa thấy, tìm kiếm không phân biệt hoa/thường hay khoảng trắng
+  // Cấp độ 2: Tìm theo tên đã xóa dấu tiếng Việt & khoảng trắng
   if (!sheet) {
     const sheets = ss.getSheets();
-    const targetNorm = sheetName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const targetNorm = removeVietnameseTones(sheetName);
 
     for (let i = 0; i < sheets.length; i++) {
       const sName = sheets[i].getName();
-      const sNorm = sName.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const sNorm = removeVietnameseTones(sName);
 
       if (sNorm === targetNorm || 
           (sheetName === SHEET_DROPDOWN && (sNorm.includes('khunggio') || sNorm.includes('dropdown')))) {
@@ -52,6 +64,12 @@ function getSheet(sheetName) {
     }
   }
 
+  // Cấp độ 3: Nếu là Sheet Ca học mà chưa tìm thấy, lấy ngay Sheet thứ 2 trong file Google Sheet
+  if (!sheet && sheetName === SHEET_DROPDOWN && ss.getSheets().length >= 2) {
+    sheet = ss.getSheets()[1];
+  }
+
+  // Cấp độ 4: Tự động khởi tạo nếu file trắng
   if (!sheet) {
     if (sheetName === SHEET_REGISTRATIONS) {
       sheet = ss.getSheetByName('Sheet1') || ss.getSheetByName('Trang tính1') || ss.getSheets()[0];
@@ -69,22 +87,13 @@ function getSheet(sheetName) {
   if (sheet.getLastRow() === 0) {
     if (sheetName === SHEET_REGISTRATIONS) {
       sheet.appendRow([
-        'Mã Đăng Ký', 
-        'Họ và Tên', 
-        'Số Điện Thoại / Zalo', 
-        'Email', 
-        'Loại Học Viên', 
-        'Số Buổi / Tuần', 
-        'Các Ca Học Đã Chọn', 
-        'Mục Tiêu Học Tập', 
-        'Ghi Chú', 
-        'Thời Gian Đăng Ký', 
-        'Trạng Thái'
+        'Mã Đăng Ký', 'Họ và Tên', 'Số Điện Thoại / Zalo', 'Email', 
+        'Loại Học Viên', 'Số Buổi / Tuần', 'Các Ca Học Đã Chọn', 
+        'Mục Tiêu Học Tập', 'Ghi Chú', 'Thời Gian Đăng Ký', 'Trạng Thái'
       ]);
       sheet.getRange("1:1").setFontWeight("bold").setBackground("#4F46E5").setFontColor("#FFFFFF");
     } else if (sheetName === SHEET_DROPDOWN) {
       sheet.appendRow(['Thứ / Ngày', 'Tên Ca', 'Thời Gian', 'Mô Tả / Trạng Thái']);
-      // Dữ liệu mẫu ban đầu cho sheet Dropdown: Khung giờ 1 & Khung giờ 2 cho 7 ngày trong tuần
       const defaultSlots = [
         ['Thứ 2', 'Khung giờ 1', '', 'Hoạt động'],
         ['Thứ 2', 'Khung giờ 2', '', 'Hoạt động'],
@@ -108,10 +117,9 @@ function getSheet(sheetName) {
   return sheet;
 }
 
-// 2. CHIỀU ĐỌC DỮ LIỆU (GET): Trả về ĐỒNG THỜI cả Đăng ký học viên & Danh sách Ca học từ sheet quanlykhunggio
+// 2. CHIỀU ĐỌC DỮ LIỆU (GET)
 function doGet(e) {
   try {
-    // A. Đọc dữ liệu học viên đăng ký
     const regSheet = getSheet(SHEET_REGISTRATIONS);
     const regData = regSheet.getDataRange().getValues();
     const registrations = [];
@@ -129,7 +137,6 @@ function doGet(e) {
           if (header) item[header] = row[colIndex];
         });
 
-        // Ánh xạ linh hoạt tên cột
         item['Mã Đăng Ký'] = item['Mã Đăng Ký'] || item['MaDK'] || item['Mã'] || row[0] || ('DK-' + (index + 1));
         item['Họ và Tên'] = item['Họ và Tên'] || item['Họ tên'] || item['Full Name'] || row[1] || 'Học viên';
         item['Số Điện Thoại / Zalo'] = item['Số Điện Thoại / Zalo'] || item['Số điện thoại'] || item['SĐT'] || item['Phone'] || row[2] || 'N/A';
@@ -146,18 +153,16 @@ function doGet(e) {
       });
     }
 
-    // B. Đọc dữ liệu ca học từ sheet quanlykhunggio (Tự động nhận diện Dạng Ma trận hoặc Dạng Dòng)
     const dropdownSheet = getSheet(SHEET_DROPDOWN);
     const dropdownData = dropdownSheet.getDataRange().getValues();
     const dropdownSlots = [];
 
     if (dropdownData && dropdownData.length > 1) {
       const headers = dropdownData[0].map(h => (h || '').toString().trim());
-      const isMatrixFormat = headers.some((h, idx) => idx > 0 && (h.toLowerCase().includes('khung giờ') || h.toLowerCase().includes('ca '))) &&
-                             !headers[1].toLowerCase().includes('tên ca') && !headers[1].toLowerCase().includes('ca học');
+      const isMatrixFormat = headers.some((h, idx) => idx > 0 && (removeVietnameseTones(h).includes('khunggio') || removeVietnameseTones(h).includes('ca'))) &&
+                             !removeVietnameseTones(headers[1]).includes('tenca');
 
       if (isMatrixFormat) {
-        // DẠNG MA TRẬN: Dòng 1 chứa tên ca học (Col 1: Khung giờ 1, Col 2: Khung giờ 2...)
         for (let i = 1; i < dropdownData.length; i++) {
           const dayLabel = (dropdownData[i][0] || '').toString().trim();
           if (!dayLabel) continue;
@@ -177,11 +182,10 @@ function doGet(e) {
           }
         }
       } else {
-        // DẠNG DÒNG (Standard): Cột 1 = Thứ, Cột 2 = Tên ca, Cột 3 = Thời gian, Cột Trạng thái
-        let statusColIndex = 3; // Mặc định là Cột D (0-indexed)
+        let statusColIndex = 3;
         headers.forEach((h, idx) => {
-          const hLower = h.toLowerCase();
-          if (hLower.includes('trạng thái') || hLower.includes('trang thai') || hLower.includes('khóa') || hLower.includes('mô tả') || hLower.includes('status')) {
+          const hNorm = removeVietnameseTones(h);
+          if (hNorm.includes('trangthai') || hNorm.includes('khoa') || hNorm.includes('mota') || hNorm.includes('status')) {
             statusColIndex = idx;
           }
         });
@@ -211,6 +215,7 @@ function doGet(e) {
     return ContentService
       .createTextOutput(JSON.stringify({ 
         status: 'success', 
+        sheetUsed: dropdownSheet.getName(),
         dropdowns: dropdownSlots,
         registrations: registrations 
       }))
@@ -223,7 +228,7 @@ function doGet(e) {
   }
 }
 
-// 3. CHIỀU GHI DỮ LIỆU (POST): Xử lý Đăng ký mới, Nút Xác nhận & Quản trị Mở/Khóa ca (LockService)
+// 3. CHIỀU GHI DỮ LIỆU (POST)
 function doPost(e) {
   const lock = LockService.getScriptLock();
   const hasLock = lock.tryLock(10000);
@@ -242,7 +247,7 @@ function doPost(e) {
     const dropdownSheet = getSheet(SHEET_DROPDOWN);
     const contents = JSON.parse(e.postData.contents);
 
-    // A. Hành động Thêm Khung giờ / Ca học mới vào sheet quanlykhunggio
+    // A. Thêm Khung giờ / Ca học mới vào sheet quanlykhunggio
     if (contents.action === 'addDropdownSlot') {
       const newDay = contents.day || 'Thứ 2';
       const newShift = contents.shift || 'Khung giờ mới';
@@ -254,28 +259,27 @@ function doPost(e) {
       return ContentService
         .createTextOutput(JSON.stringify({
           status: 'success',
-          message: `Đã thêm thành công ca học "${newDay} (${newShift}${newTime ? ': ' + newTime : ''})" vào sheet quanlykhunggio!`
+          message: `Đã thêm thành công ca học "${newDay} (${newShift}${newTime ? ': ' + newTime : ''})" vào sheet "${dropdownSheet.getName()}"!`
         }))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    // B. Hành động Quản trị Mở / Khóa Đơn lẻ Ca học (Thông minh tự phát hiện Dạng Ma trận hoặc Dạng Dòng)
+    // B. Quản trị Mở / Khóa Đơn lẻ Ca học (Chuẩn hóa Tiếng Việt không dấu)
     if (contents.action === 'updateSlotStatus') {
-      const targetDay = (contents.day || '').toString().trim().toLowerCase();
-      const targetShift = (contents.shift || '').toString().trim().toLowerCase();
-      const newStatus = contents.status || 'Đã khóa'; // 'Hoạt động' | 'Đã khóa'
+      const targetDayNorm = removeVietnameseTones(contents.day);
+      const targetShiftNorm = removeVietnameseTones(contents.shift);
+      const newStatus = contents.status || 'Đã khóa';
 
       const dropData = dropdownSheet.getDataRange().getValues();
 
       if (dropData && dropData.length > 0) {
         const headers = dropData[0].map(h => (h || '').toString().trim());
 
-        // 1. Kiểm tra xem Sheet có phải dạng Ma trận (Cột B, C... là Tên ca như "Khung giờ 1", "Khung giờ 2")
         let matrixColIndex = -1;
         for (let c = 1; c < headers.length; c++) {
-          const hLower = headers[c].toLowerCase();
-          if (hLower === targetShift || hLower.includes(targetShift) || targetShift.includes(hLower)) {
-            if (!hLower.includes('tên ca') && !hLower.includes('thời gian') && !hLower.includes('trạng thái')) {
+          const hNorm = removeVietnameseTones(headers[c]);
+          if (hNorm === targetShiftNorm || hNorm.includes(targetShiftNorm) || targetShiftNorm.includes(hNorm)) {
+            if (!hNorm.includes('tenca') && !hNorm.includes('thoigian') && !hNorm.includes('trangthai')) {
               matrixColIndex = c;
               break;
             }
@@ -283,11 +287,10 @@ function doPost(e) {
         }
 
         if (matrixColIndex > -1) {
-          // Xử lý DẠNG MA TRẬN
           let foundRow = -1;
           for (let i = 1; i < dropData.length; i++) {
-            const dayVal = (dropData[i][0] || '').toString().trim().toLowerCase();
-            if (dayVal === targetDay || dayVal.includes(targetDay) || targetDay.includes(dayVal)) {
+            const dayNorm = removeVietnameseTones(dropData[i][0]);
+            if (dayNorm === targetDayNorm || dayNorm.includes(targetDayNorm) || targetDayNorm.includes(dayNorm)) {
               foundRow = i + 1;
               break;
             }
@@ -301,11 +304,10 @@ function doPost(e) {
             dropdownSheet.appendRow(newRowArr);
           }
         } else {
-          // Xử lý DẠNG DÒNG (Standard)
-          let statusColIndex = 4; // Mặc định Cột D (1-based index)
+          let statusColIndex = 4;
           for (let c = 0; c < headers.length; c++) {
-            const hLower = headers[c].toLowerCase();
-            if (hLower.includes('trạng thái') || hLower.includes('trang thai') || hLower.includes('khóa') || hLower.includes('mô tả') || hLower.includes('status')) {
+            const hNorm = removeVietnameseTones(headers[c]);
+            if (hNorm.includes('trangthai') || hNorm.includes('khoa') || hNorm.includes('mota') || hNorm.includes('status')) {
               statusColIndex = c + 1;
               break;
             }
@@ -313,11 +315,11 @@ function doPost(e) {
 
           let foundRow = -1;
           for (let i = 1; i < dropData.length; i++) {
-            const dayVal = (dropData[i][0] || '').toString().trim().toLowerCase();
-            const shiftVal = (dropData[i][1] || '').toString().trim().toLowerCase();
+            const dayNorm = removeVietnameseTones(dropData[i][0]);
+            const shiftNorm = removeVietnameseTones(dropData[i][1]);
 
-            const dayMatch = (dayVal === targetDay) || dayVal.includes(targetDay) || targetDay.includes(dayVal);
-            const shiftMatch = (shiftVal === targetShift) || shiftVal.includes(targetShift) || targetShift.includes(shiftVal);
+            const dayMatch = (dayNorm === targetDayNorm) || dayNorm.includes(targetDayNorm) || targetDayNorm.includes(dayNorm);
+            const shiftMatch = (shiftNorm === targetShiftNorm) || shiftNorm.includes(targetShiftNorm) || targetShiftNorm.includes(shiftNorm);
 
             if (dayMatch && shiftMatch) {
               foundRow = i + 1;
@@ -336,12 +338,12 @@ function doPost(e) {
       return ContentService
         .createTextOutput(JSON.stringify({
           status: 'success',
-          message: `Đã cập nhật trạng thái ca học ${contents.day} (${contents.shift}) sang "${newStatus}".`
+          message: `Đã cập nhật trạng thái ca học ${contents.day} (${contents.shift}) sang "${newStatus}" trên sheet "${dropdownSheet.getName()}".`
         }))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    // C. Hành động Quản trị Mở / Khóa Tất cả 7 ngày & Ca học
+    // C. Quản trị Mở / Khóa Tất cả 7 ngày & Ca học
     if (contents.action === 'toggleAllSlots') {
       const newStatus = contents.status || 'Hoạt động';
       const dropData = dropdownSheet.getDataRange().getValues();
@@ -350,8 +352,8 @@ function doPost(e) {
         const headers = dropData[0].map(h => (h || '').toString().trim());
         let statusColIndex = 4;
         for (let c = 0; c < headers.length; c++) {
-          const hLower = headers[c].toLowerCase();
-          if (hLower.includes('trạng thái') || hLower.includes('trang thai') || hLower.includes('khóa') || hLower.includes('mô tả') || hLower.includes('status')) {
+          const hNorm = removeVietnameseTones(headers[c]);
+          if (hNorm.includes('trangthai') || hNorm.includes('khoa') || hNorm.includes('mota') || hNorm.includes('status')) {
             statusColIndex = c + 1;
             break;
           }
@@ -359,8 +361,8 @@ function doPost(e) {
 
         for (let i = 1; i < dropData.length; i++) {
           for (let col = 1; col < headers.length; col++) {
-            const hLower = headers[col].toLowerCase();
-            if (hLower.includes('khung giờ') || hLower.includes('ca ')) {
+            const hNorm = removeVietnameseTones(headers[col]);
+            if (hNorm.includes('khunggio') || hNorm.includes('ca')) {
               dropdownSheet.getRange(i + 1, col + 1).setValue(newStatus);
             }
           }
@@ -371,12 +373,12 @@ function doPost(e) {
       return ContentService
         .createTextOutput(JSON.stringify({
           status: 'success',
-          message: `Đã cập nhật trạng thái tất cả ca học sang "${newStatus}".`
+          message: `Đã cập nhật trạng thái tất cả ca học sang "${newStatus}" trên sheet "${dropdownSheet.getName()}".`
         }))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    // C. Xử lý Hành động Nút Xác nhận từ Nhân viên
+    // D. Nút Xác nhận từ Nhân viên
     if (contents.action === 'confirm' || contents.action === 'confirmRegistration') {
       const regId = contents.registrationId;
       const data = sheet.getDataRange().getValues();
@@ -408,11 +410,11 @@ function doPost(e) {
       }
     }
 
+    // E. Đăng ký Học viên Mới
     const requestedSlots = Array.isArray(contents.selectedSlots)
       ? contents.selectedSlots
       : (contents.selectedSlots ? [contents.selectedSlots] : []);
 
-    // 1. Đếm số lượt đã đăng ký trong sheet để đảm bảo không ca nào vượt quá MAX_SLOT_CAPACITY (9 người)
     const data = sheet.getDataRange().getValues();
     const rows = data.slice(1);
     const slotCounts = {};
@@ -429,7 +431,6 @@ function doPost(e) {
       }
     });
 
-    // 2. Kiểm tra xem có ca nào vượt quá 9 người không
     for (let i = 0; i < requestedSlots.length; i++) {
       const slotName = requestedSlots[i];
       const currentCount = slotCounts[slotName] || 0;
@@ -443,7 +444,6 @@ function doPost(e) {
       }
     }
 
-    // 3. Tạo mã đăng ký & Ghi dòng mới an toàn
     const registrationId = 'DK-' + Date.now().toString().slice(-6);
     const timestamp = new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
     
@@ -477,8 +477,6 @@ function doPost(e) {
       .createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
   } finally {
-    // Luôn nhả khóa hàng đợi sau khi hoàn tất
     lock.releaseLock();
   }
 }
-
