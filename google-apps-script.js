@@ -14,11 +14,26 @@
 
 const SHEET_NAME = 'DangKyLichHoc';
 
-function initSheet() {
+// Lấy trang tính thông minh: Ưu tiên 'DangKyLichHoc', nếu không có sẽ tự tìm trang tính đầu tiên chứa dữ liệu
+function getSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(SHEET_NAME);
+  
   if (!sheet) {
-    sheet = ss.insertSheet(SHEET_NAME);
+    const sheets = ss.getSheets();
+    for (let i = 0; i < sheets.length; i++) {
+      if (sheets[i].getLastRowCount() > 0) {
+        sheet = sheets[i];
+        break;
+      }
+    }
+  }
+
+  if (!sheet) {
+    sheet = ss.getSheets()[0] || ss.insertSheet(SHEET_NAME);
+  }
+
+  if (sheet.getLastRowCount() === 0) {
     sheet.appendRow([
       'Mã Đăng Ký', 
       'Họ và Tên', 
@@ -40,17 +55,40 @@ function initSheet() {
 // 1. CHIỀU ĐỌC DỮ LIỆU (GET): Trả về danh sách thời khóa biểu & lịch đã đăng ký cho Web
 function doGet(e) {
   try {
-    const sheet = initSheet();
+    const sheet = getSheet();
     const data = sheet.getDataRange().getValues();
-    const headers = data[0];
+    if (!data || data.length < 2) {
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: 'success', data: [] }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    const headers = data[0].map(h => h ? h.toString().trim() : '');
     const rows = data.slice(1);
     
-    const result = rows.map((row, index) => {
+    const result = [];
+    rows.forEach((row, index) => {
+      const hasContent = row.some(cell => cell && cell.toString().trim() !== '');
+      if (!hasContent) return;
+
       let item = { rowIndex: index + 2 };
       headers.forEach((header, colIndex) => {
-        item[header] = row[colIndex];
+        if (header) item[header] = row[colIndex];
       });
-      return item;
+
+      // Ánh xạ linh hoạt linh hoạt các tên cột nếu người dùng nhập tiêu đề hơi khác
+      item['Mã Đăng Ký'] = item['Mã Đăng Ký'] || item['MaDK'] || item['Mã'] || row[0] || ('DK-' + (index + 1));
+      item['Họ và Tên'] = item['Họ và Tên'] || item['Họ tên'] || item['Họ Tên'] || item['Full Name'] || row[1] || 'Học viên';
+      item['Số Điện Thoại / Zalo'] = item['Số Điện Thoại / Zalo'] || item['Số điện thoại'] || item['SĐT'] || item['Phone'] || row[2] || 'N/A';
+      item['Email'] = item['Email'] || row[3] || '';
+      item['Loại Học Viên'] = item['Loại Học Viên'] || item['Loại học viên'] || row[4] || 'Cấp tốc';
+      item['Số Buổi / Tuần'] = item['Số Buổi / Tuần'] || item['Số buổi'] || row[5] || '';
+      item['Các Ca Học Đã Chọn'] = item['Các Ca Học Đã Chọn'] || item['Lịch học'] || item['Ca học'] || item['Các ca học'] || row[6] || '';
+      item['Mục Tiêu Học Tập'] = item['Mục Tiêu Học Tập'] || item['Mục tiêu'] || row[7] || '';
+      item['Ghi Chú'] = item['Ghi Chú'] || row[8] || '';
+      item['Trạng Thái'] = item['Trạng Thái'] || item['Trạng thái'] || row[10] || 'Chờ xác nhận';
+
+      result.push(item);
     });
 
     return ContentService
@@ -67,7 +105,7 @@ function doGet(e) {
 // 2. CHIỀU GHI DỮ LIỆU (POST): Nhận đăng ký mới từ Web và append vào Google Sheet với kiểm tra giới hạn 9 người/ca
 function doPost(e) {
   try {
-    const sheet = initSheet();
+    const sheet = getSheet();
     const contents = JSON.parse(e.postData.contents);
     const MAX_SLOT_CAPACITY = 9;
 
@@ -77,11 +115,11 @@ function doPost(e) {
 
     // Đếm số lượng đăng ký hiện tại trong Sheet để đảm bảo không ca nào > 9 người
     const data = sheet.getDataRange().getValues();
-    const rows = data.slice(1); // Bỏ dòng tiêu đề
+    const rows = data.slice(1);
     const slotCounts = {};
 
     rows.forEach(row => {
-      const selectedStr = row[6] || ''; // Cột 'Các Ca Học Đã Chọn'
+      const selectedStr = row[6] || '';
       if (selectedStr) {
         const slots = selectedStr.toString().split(',').map(s => s.trim());
         slots.forEach(slot => {
@@ -92,7 +130,6 @@ function doPost(e) {
       }
     });
 
-    // Kiểm tra xem có ca học nào được chọn đã đầy (>= 9 người)
     for (let i = 0; i < requestedSlots.length; i++) {
       const slotName = requestedSlots[i];
       const currentCount = slotCounts[slotName] || 0;
