@@ -479,6 +479,43 @@ function doPost(e) {
       }
     }
 
+    // E1. Nút Xóa Học viên từ Nhân viên (Xóa dòng khỏi sheet DangKyLichHoc)
+    if (contents.action === 'deleteRegistration' || contents.action === 'deleteStudent') {
+      const regId = (contents.registrationId || contents.id || '').toString().trim();
+      const targetNameNorm = removeVietnameseTones(contents.fullName || contents.name);
+
+      const data = sheet.getDataRange().getValues();
+      let foundIndex = -1;
+
+      for (let i = 1; i < data.length; i++) {
+        const rowRegId = data[i][0] ? data[i][0].toString().trim() : '';
+        const nameNorm = removeVietnameseTones(data[i][1]);
+
+        if ((regId && (rowRegId === regId || ('DK-' + i) === regId)) ||
+            (targetNameNorm && (nameNorm === targetNameNorm || nameNorm.includes(targetNameNorm)))) {
+          foundIndex = i + 1;
+          break;
+        }
+      }
+
+      if (foundIndex > -1) {
+        sheet.deleteRow(foundIndex);
+        return ContentService
+          .createTextOutput(JSON.stringify({
+            status: 'success',
+            message: 'Đã xóa thành công đơn đăng ký khỏi Google Sheet!'
+          }))
+          .setMimeType(ContentService.MimeType.JSON);
+      } else {
+        return ContentService
+          .createTextOutput(JSON.stringify({
+            status: 'error',
+            message: 'Không tìm thấy đơn đăng ký để xóa trong Google Sheet!'
+          }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
     // E. Đăng ký Học viên Mới
     const requestedSlots = Array.isArray(contents.selectedSlots)
       ? contents.selectedSlots

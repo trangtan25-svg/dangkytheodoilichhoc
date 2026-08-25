@@ -229,16 +229,19 @@ function renderScheduleList() {
                   <div style="font-weight: 700;">${st['Họ và Tên'] || 'Học viên'}</div>
                   <div style="font-size: 0.78rem; color: var(--text-muted);"><i class="fa-solid fa-phone"></i> ${st['Số Điện Thoại / Zalo'] || ''} | <span style="color: var(--primary);">${st['Mã Đăng Ký'] || ''}</span></div>
                 </div>
-                <div>
+                <div style="display: flex; gap: 4px; align-items: center;">
                   ${isConfirmed ? `
                     <span style="font-size: 0.75rem; color: var(--success); font-weight: 700; background: rgba(16, 185, 129, 0.15); padding: 4px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
                       <i class="fa-solid fa-check-double"></i> Đã duyệt
                     </span>
                   ` : `
-                    <button class="btn btn-sm btn-success confirm-student-btn" data-regid="${st['Mã Đăng Ký']}" style="padding: 4px 10px; font-size: 0.78rem; white-space: nowrap;">
+                    <button class="btn btn-sm btn-success confirm-student-btn" data-regid="${st['Mã Đăng Ký']}" style="padding: 4px 8px; font-size: 0.76rem; white-space: nowrap;">
                       <i class="fa-solid fa-circle-check"></i> Xác nhận
                     </button>
                   `}
+                  <button class="btn btn-sm btn-danger delete-student-btn" data-regid="${st['Mã Đăng Ký']}" data-name="${st['Họ và Tên'] || 'Học viên'}" style="padding: 4px 8px; font-size: 0.76rem; white-space: nowrap;">
+                    <i class="fa-solid fa-trash-can"></i> Xóa
+                  </button>
                 </div>
               </div>
             `;
@@ -297,7 +300,7 @@ function renderScheduleList() {
           </div>
         ` : ''}
 
-        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-color); display: flex; justify-content: flex-end;">
+        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-color); display: flex; justify-content: flex-end; gap: 8px; align-items: center;">
           ${isConfirmed ? `
             <span style="font-size: 0.8rem; color: var(--success); font-weight: 700; background: rgba(16, 185, 129, 0.15); padding: 6px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px;">
               <i class="fa-solid fa-check-double"></i> Đã xác nhận đăng ký
@@ -307,6 +310,9 @@ function renderScheduleList() {
               <i class="fa-solid fa-circle-check"></i> Xác nhận Đăng ký
             </button>
           `}
+          <button class="btn btn-sm btn-danger delete-student-btn" data-regid="${item['Mã Đăng Ký']}" data-name="${item['Họ và Tên'] || 'Học viên'}">
+            <i class="fa-solid fa-trash-can"></i> Xóa
+          </button>
         </div>
       `;
 
@@ -322,6 +328,63 @@ function renderScheduleList() {
       confirmStudentRegistration(regId, btn);
     });
   });
+
+  // Gắn sự kiện cho các Nút Xóa Đơn Đăng ký
+  document.querySelectorAll('.delete-student-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const regId = btn.dataset.regid;
+      const studentName = btn.dataset.name;
+      deleteStudentRegistration(regId, studentName, btn);
+    });
+  });
+}
+
+// Hàm Nhân viên Xóa Đơn Đăng ký học viên -> Đồng bộ trực tiếp xóa dòng trên Google Sheet
+async function deleteStudentRegistration(registrationId, studentName, btnElement) {
+  if (!registrationId) return;
+
+  if (!confirm(`Bạn có chắc chắn muốn XÓA đơn đăng ký của học viên "${studentName}" (Mã: ${registrationId}) khỏi Google Sheet?`)) {
+    return;
+  }
+
+  if (btnElement) {
+    btnElement.disabled = true;
+    btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Xóa...';
+  }
+
+  try {
+    const res = await fetch(CONFIG.API.REGISTER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'deleteRegistration',
+        registrationId: registrationId,
+        fullName: studentName
+      })
+    });
+
+    const result = await res.json();
+    if (result && result.status === 'success') {
+      if (typeof showToast === 'function') {
+        showToast(`Đã xóa đơn đăng ký của học viên "${studentName}" thành công!`, 'success');
+      }
+
+      await fetchScheduleData();
+
+    } else {
+      if (typeof showToast === 'function') {
+        showToast(result.message || 'Xóa đơn đăng ký thất bại.', 'error');
+      }
+      if (btnElement) btnElement.disabled = false;
+    }
+  } catch (err) {
+    console.error('Delete student registration error:', err);
+    if (typeof showToast === 'function') {
+      showToast('Lỗi kết nối khi xóa học viên.', 'error');
+    }
+    if (btnElement) btnElement.disabled = false;
+  }
 }
 
 function setupScheduleEventListeners() {
