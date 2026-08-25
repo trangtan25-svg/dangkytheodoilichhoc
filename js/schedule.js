@@ -375,10 +375,12 @@ function renderScheduleList() {
     container.appendChild(tableCard);
 
   } else if (currentViewMode === 'grid') {
-    // CHẾ ĐỘ 2: XEM THEO THỨ & CA HỌC (GRID VIEW)
+    // CHẾ ĐỘ 2: XEM THEO THỨ & CA HỌC (GRID VIEW - 7 CỘT HIỂN THỊ CÙNG 1 KHUNG HÌNH)
     container.style.display = 'grid';
-    container.style.gridTemplateColumns = 'repeat(auto-fit, minmax(320px, 1fr))';
-    container.style.gap = '20px';
+    container.style.gridTemplateColumns = 'repeat(7, minmax(130px, 1fr))';
+    container.style.gap = '8px';
+    container.style.overflowX = 'auto';
+    container.style.paddingBottom = '10px';
 
     const daysList = CONFIG.DAYS || [
       { key: 'T2', label: 'Thứ 2' },
@@ -397,11 +399,12 @@ function renderScheduleList() {
     daysList.forEach(day => {
       const dayCard = document.createElement('div');
       dayCard.className = 'card';
-      dayCard.style.padding = '18px';
+      dayCard.style.padding = '10px 6px';
+      dayCard.style.minWidth = '0';
 
       let dayHtml = `
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 2px solid var(--primary);">
-          <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--primary);"><i class="fa-solid fa-calendar-day"></i> ${day.label}</h3>
+        <div style="text-align: center; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid var(--primary);">
+          <h3 style="font-size: 0.92rem; font-weight: 800; color: var(--primary); margin: 0; white-space: nowrap;"><i class="fa-solid fa-calendar-day"></i> ${day.label}</h3>
         </div>
       `;
 
@@ -414,37 +417,39 @@ function renderScheduleList() {
         const studentCount = matchedStudents.length;
 
         dayHtml += `
-          <div style="background: var(--bg-input); padding: 12px; border-radius: var(--radius-md); margin-bottom: 12px; border-left: 4px solid ${studentCount >= 9 ? 'var(--danger)' : 'var(--primary)'};">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <span style="font-weight: 700; font-size: 0.9rem; color: var(--text-main);"><i class="fa-solid fa-clock text-warning"></i> ${shiftName}</span>
-              <span class="slot-capacity-badge" style="font-size: 0.8rem; padding: 2px 8px;">${studentCount}/9 người</span>
+          <div style="background: var(--bg-input); padding: 8px 6px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid ${studentCount >= 9 ? 'var(--danger)' : 'var(--primary)'};">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 2px;">
+              <span style="font-weight: 700; font-size: 0.78rem; color: var(--text-main); white-space: nowrap;"><i class="fa-solid fa-clock text-warning"></i> ${shiftName}</span>
+              <span class="slot-capacity-badge" style="font-size: 0.68rem; padding: 1px 4px; white-space: nowrap;">${studentCount}/9</span>
             </div>
         `;
 
         if (matchedStudents.length === 0) {
-          dayHtml += `<p style="font-size: 0.8rem; color: var(--text-muted); font-style: italic; margin: 4px 0;">Chưa có học viên đăng ký ca này</p>`;
+          dayHtml += `<p style="font-size: 0.72rem; color: var(--text-muted); font-style: italic; margin: 2px 0; text-align: center;">Trống</p>`;
         } else {
-          dayHtml += `<div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">`;
+          dayHtml += `<div style="display: flex; flex-direction: column; gap: 6px; margin-top: 6px;">`;
           matchedStudents.forEach(st => {
             const isConfirmed = (st['Trạng Thái'] || '').toString().includes('xác nhận');
+            const phone = (st['Số Điện Thoại / Zalo'] || '').toString();
+
             dayHtml += `
-              <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-card); padding: 8px 10px; border-radius: 6px; font-size: 0.84rem; border: 1px solid var(--border-color);">
+              <div style="background: var(--bg-card); padding: 6px 6px; border-radius: 4px; font-size: 0.76rem; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 4px;">
                 <div>
-                  <div style="font-weight: 700;">${st['Họ và Tên'] || 'Học viên'}</div>
-                  <div style="font-size: 0.78rem; color: var(--text-muted);"><i class="fa-solid fa-phone"></i> ${st['Số Điện Thoại / Zalo'] || ''} | <span style="color: var(--primary);">${st['Mã Đăng Ký'] || ''}</span></div>
+                  <div style="font-weight: 700; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${st['Họ và Tên'] || ''}">${st['Họ và Tên'] || 'Học viên'}</div>
+                  <div style="font-size: 0.7rem; color: var(--text-muted);">${phone || ''}</div>
                 </div>
-                <div style="display: flex; gap: 4px; align-items: center;">
+                <div style="display: flex; gap: 3px; align-items: center; justify-content: flex-end; margin-top: 2px;">
                   ${isConfirmed ? `
-                    <span style="font-size: 0.75rem; color: var(--success); font-weight: 700; background: rgba(16, 185, 129, 0.15); padding: 4px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
-                      <i class="fa-solid fa-check-double"></i> Đã duyệt
+                    <span style="font-size: 0.68rem; color: var(--success); font-weight: 700; background: rgba(16, 185, 129, 0.15); padding: 2px 5px; border-radius: 3px; white-space: nowrap;">
+                      <i class="fa-solid fa-check"></i> Duyệt
                     </span>
                   ` : `
-                    <button class="btn btn-sm btn-success confirm-student-btn" data-regid="${st['Mã Đăng Ký']}" style="padding: 4px 8px; font-size: 0.76rem; white-space: nowrap;">
-                      <i class="fa-solid fa-circle-check"></i> Duyệt
+                    <button class="btn btn-sm btn-success confirm-student-btn" data-regid="${st['Mã Đăng Ký']}" style="padding: 2px 6px; font-size: 0.68rem; white-space: nowrap;" title="Duyệt đơn">
+                      <i class="fa-solid fa-check"></i> Duyệt
                     </button>
                   `}
-                  <button class="btn btn-sm btn-danger delete-student-btn" data-regid="${st['Mã Đăng Ký']}" data-name="${st['Họ và Tên'] || 'Học viên'}" data-rowindex="${st.rowIndex || ''}" style="padding: 4px 8px; font-size: 0.76rem; white-space: nowrap;">
-                    <i class="fa-solid fa-trash-can"></i> Xóa
+                  <button class="btn btn-sm btn-danger delete-student-btn" data-regid="${st['Mã Đăng Ký']}" data-name="${st['Họ và Tên'] || 'Học viên'}" data-rowindex="${st.rowIndex || ''}" style="padding: 2px 6px; font-size: 0.68rem; white-space: nowrap;" title="Xóa đơn">
+                    <i class="fa-solid fa-trash-can"></i>
                   </button>
                 </div>
               </div>
