@@ -65,7 +65,7 @@ function getSlotRegistrationCounts() {
   return counts;
 }
 
-// 2. Render Multi-Select Slots Matrix Grid (Đồng bộ 2 chiều số chỗ & Khóa ca đủ 9/9 người)
+// 2. Render Multi-Select Slots Matrix Grid (Hỗ trợ ca học động từ sheet Dropdown & Khóa ca đủ 9/9 người)
 function renderSlotsGrid() {
   const gridContainer = document.getElementById('slotsGrid');
   if (!gridContainer) return;
@@ -74,54 +74,114 @@ function renderSlotsGrid() {
   const slotCounts = getSlotRegistrationCounts();
   const maxCapacity = CONFIG.MAX_SLOT_CAPACITY || 9;
 
-  CONFIG.DAYS.forEach(day => {
-    const dayCol = document.createElement('div');
-    dayCol.className = 'day-column';
-
-    const header = document.createElement('div');
-    header.className = 'day-header';
-    header.textContent = day.label;
-    dayCol.appendChild(header);
-
-    CONFIG.SHIFTS.forEach(shift => {
-      const slotId = `${day.key}_${shift.key}`;
-      const slotLabel = `${day.label} (${shift.label}: ${shift.time})`;
-      const count = slotCounts[slotLabel] || 0;
-      const isFull = count >= maxCapacity;
-      const isSelected = state.selectedSlots.some(s => s.id === slotId);
-
-      if (isFull && isSelected) {
-        const idx = state.selectedSlots.findIndex(s => s.id === slotId);
-        if (idx > -1) state.selectedSlots.splice(idx, 1);
-      }
-
-      const slotItem = document.createElement('div');
-      slotItem.className = `slot-item ${isFull ? 'full disabled' : ''} ${isSelected && !isFull ? 'selected' : ''}`;
-      slotItem.dataset.id = slotId;
-      slotItem.dataset.label = slotLabel;
-      slotItem.dataset.count = count;
-
-      slotItem.innerHTML = `
-        <span class="slot-time">${shift.time}</span>
-        <span class="slot-name">${shift.label}</span>
-        <span class="slot-capacity-badge">${isFull ? 'ĐÃ ĐẦY (9/9)' : `${count}/${maxCapacity} người`}</span>
-      `;
-
-      slotItem.addEventListener('click', () => {
-        if (isFull) {
-          if (typeof showToast === 'function') {
-            showToast(`Ca học "${slotLabel}" đã đủ tối đa 9/9 người đăng ký!`, 'error');
-          }
-          return;
-        }
-        toggleSlotSelection(slotId, slotLabel, slotItem);
-      });
-
-      dayCol.appendChild(slotItem);
+  // Nếu có ca học động từ sheet Dropdown trên Google Sheet
+  if (Array.isArray(state.dropdownSlots) && state.dropdownSlots.length > 0) {
+    const daysMap = {};
+    state.dropdownSlots.forEach(slot => {
+      const dayKey = slot.day || 'Khác';
+      if (!daysMap[dayKey]) daysMap[dayKey] = [];
+      daysMap[dayKey].push(slot);
     });
 
-    gridContainer.appendChild(dayCol);
-  });
+    Object.keys(daysMap).forEach(dayLabel => {
+      const dayCol = document.createElement('div');
+      dayCol.className = 'day-column';
+
+      const header = document.createElement('div');
+      header.className = 'day-header';
+      header.textContent = dayLabel;
+      dayCol.appendChild(header);
+
+      daysMap[dayLabel].forEach((slot, sIdx) => {
+        const slotLabel = slot.label;
+        const slotId = `dyn_${dayLabel}_${sIdx}`;
+        const count = slotCounts[slotLabel] || 0;
+        const isFull = count >= maxCapacity;
+        const isSelected = state.selectedSlots.some(s => s.label === slotLabel);
+
+        if (isFull && isSelected) {
+          const idx = state.selectedSlots.findIndex(s => s.label === slotLabel);
+          if (idx > -1) state.selectedSlots.splice(idx, 1);
+        }
+
+        const slotItem = document.createElement('div');
+        slotItem.className = `slot-item ${isFull ? 'full disabled' : ''} ${isSelected && !isFull ? 'selected' : ''}`;
+        slotItem.dataset.id = slotId;
+        slotItem.dataset.label = slotLabel;
+        slotItem.dataset.count = count;
+
+        slotItem.innerHTML = `
+          <span class="slot-time">${slot.time || slot.shift}</span>
+          <span class="slot-name">${slot.shift}</span>
+          <span class="slot-capacity-badge">${isFull ? 'ĐÃ ĐẦY (9/9)' : `${count}/${maxCapacity} người`}</span>
+        `;
+
+        slotItem.addEventListener('click', () => {
+          if (isFull) {
+            if (typeof showToast === 'function') {
+              showToast(`Ca học "${slotLabel}" đã đủ tối đa 9/9 người đăng ký!`, 'error');
+            }
+            return;
+          }
+          toggleSlotSelection(slotId, slotLabel, slotItem);
+        });
+
+        dayCol.appendChild(slotItem);
+      });
+
+      gridContainer.appendChild(dayCol);
+    });
+  } else {
+    // Mặc định Render từ CONFIG
+    CONFIG.DAYS.forEach(day => {
+      const dayCol = document.createElement('div');
+      dayCol.className = 'day-column';
+
+      const header = document.createElement('div');
+      header.className = 'day-header';
+      header.textContent = day.label;
+      dayCol.appendChild(header);
+
+      CONFIG.SHIFTS.forEach(shift => {
+        const slotId = `${day.key}_${shift.key}`;
+        const slotLabel = `${day.label} (${shift.label}: ${shift.time})`;
+        const count = slotCounts[slotLabel] || 0;
+        const isFull = count >= maxCapacity;
+        const isSelected = state.selectedSlots.some(s => s.id === slotId || s.label === slotLabel);
+
+        if (isFull && isSelected) {
+          const idx = state.selectedSlots.findIndex(s => s.id === slotId || s.label === slotLabel);
+          if (idx > -1) state.selectedSlots.splice(idx, 1);
+        }
+
+        const slotItem = document.createElement('div');
+        slotItem.className = `slot-item ${isFull ? 'full disabled' : ''} ${isSelected && !isFull ? 'selected' : ''}`;
+        slotItem.dataset.id = slotId;
+        slotItem.dataset.label = slotLabel;
+        slotItem.dataset.count = count;
+
+        slotItem.innerHTML = `
+          <span class="slot-time">${shift.time}</span>
+          <span class="slot-name">${shift.label}</span>
+          <span class="slot-capacity-badge">${isFull ? 'ĐÃ ĐẦY (9/9)' : `${count}/${maxCapacity} người`}</span>
+        `;
+
+        slotItem.addEventListener('click', () => {
+          if (isFull) {
+            if (typeof showToast === 'function') {
+              showToast(`Ca học "${slotLabel}" đã đủ tối đa 9/9 người đăng ký!`, 'error');
+            }
+            return;
+          }
+          toggleSlotSelection(slotId, slotLabel, slotItem);
+        });
+
+        dayCol.appendChild(slotItem);
+      });
+
+      gridContainer.appendChild(dayCol);
+    });
+  }
 
   renderSelectedTags();
   updateCounterBadge();

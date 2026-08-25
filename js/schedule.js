@@ -29,8 +29,9 @@ async function fetchScheduleData() {
           lastErrorMessage = 'Bản triển khai Web App trên Google Script chưa chọn quyền "Anyone" (Bất kỳ ai). Google yêu cầu đăng nhập.';
         } else {
           const result = JSON.parse(textRes);
-          if (result.status === 'success' && Array.isArray(result.data)) {
-            state.registrations = result.data;
+          if (result.status === 'success') {
+            state.registrations = Array.isArray(result.registrations) ? result.registrations : (Array.isArray(result.data) ? result.data : []);
+            state.dropdownSlots = Array.isArray(result.dropdowns) ? result.dropdowns : [];
             success = true;
           } else if (result.message) {
             lastErrorMessage = result.message;
@@ -48,8 +49,9 @@ async function fetchScheduleData() {
       const res = await fetch(CONFIG.API.SCHEDULE + '?t=' + Date.now());
       if (res.ok) {
         const result = await res.json();
-        if (result.status === 'success' && Array.isArray(result.data)) {
-          state.registrations = result.data;
+        if (result.status === 'success') {
+          state.registrations = Array.isArray(result.registrations) ? result.registrations : (Array.isArray(result.data) ? result.data : []);
+          state.dropdownSlots = Array.isArray(result.dropdowns) ? result.dropdowns : [];
           success = true;
         } else if (result.message) {
           lastErrorMessage = result.message;

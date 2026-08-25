@@ -43,5 +43,6 @@ const CONFIG = {
 const state = {
   selectedSlots: [],
   targetSessionCount: 4,
-  registrations: []
+  registrations: [],
+  dropdownSlots: []
 };
