@@ -43,7 +43,7 @@ function getSheet(sheetName) {
   }
 
   // Khởi tạo cột tiêu đề nếu trang tính còn trống
-  if (sheet.getLastRowCount() === 0) {
+  if (sheet.getLastRow() === 0) {
     if (sheetName === SHEET_REGISTRATIONS) {
       sheet.appendRow([
         'Mã Đăng Ký', 

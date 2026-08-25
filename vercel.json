@@ -1,17 +1,13 @@
 {
   "version": 2,
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/register",
-      "dest": "/api/register.js"
+      "source": "/api/register",
+      "destination": "/api/register.js"
     },
     {
-      "src": "/api/schedule",
-      "dest": "/api/schedule.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/$1"
+      "source": "/api/schedule",
+      "destination": "/api/schedule.js"
     }
   ]
 }
