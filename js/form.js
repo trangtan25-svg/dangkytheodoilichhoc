@@ -4,9 +4,48 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+  initDropdowns();
   renderSlotsGrid();
   setupFormEventListeners();
 });
+
+// 1. Initialize & sync dynamic dropdowns for Cấp tốc / Dài hạn
+function initDropdowns() {
+  const studentTypeSelect = document.getElementById('studentType');
+  const sessionsSelect = document.getElementById('sessionsPerWeek');
+  if (!studentTypeSelect || !sessionsSelect) return;
+
+  function updateSessionOptions() {
+    const selectedType = studentTypeSelect.value;
+    const options = CONFIG.STUDENT_TYPES[selectedType] || [];
+    
+    sessionsSelect.innerHTML = '';
+    options.forEach(opt => {
+      const el = document.createElement('option');
+      el.value = opt;
+      el.textContent = opt;
+      sessionsSelect.appendChild(el);
+    });
+
+    parseTargetSessionCount(sessionsSelect.value);
+    updateCounterBadge();
+  }
+
+  studentTypeSelect.addEventListener('change', updateSessionOptions);
+  sessionsSelect.addEventListener('change', (e) => {
+    parseTargetSessionCount(e.target.value);
+    updateCounterBadge();
+  });
+
+  updateSessionOptions();
+}
+
+function parseTargetSessionCount(valString) {
+  const match = valString.match(/\d+/);
+  if (match) {
+    state.targetSessionCount = parseInt(match[0], 10);
+  }
+}
 
 // Helper: Đếm số lượng học viên đã đăng ký cho từng ca từ Google Sheets
 function getSlotRegistrationCounts() {
@@ -27,7 +66,7 @@ function getSlotRegistrationCounts() {
   return counts;
 }
 
-// 2. Render Multi-Select Slots Matrix Grid (Hỗ trợ ca học động từ sheet Dropdown & Khóa ca đủ 9/9 người)
+// 2. Render Multi-Select Slots Matrix Grid (Đảm bảo LUÔN LUÔN hiển thị ĐỦ 7 NGÀY trong tuần x Khung giờ 1 & 2)
 function renderSlotsGrid() {
   const gridContainer = document.getElementById('slotsGrid');
   if (!gridContainer) return;
@@ -36,117 +75,72 @@ function renderSlotsGrid() {
   const slotCounts = getSlotRegistrationCounts();
   const maxCapacity = CONFIG.MAX_SLOT_CAPACITY || 9;
 
-  // Nếu có ca học động từ sheet Dropdown trên Google Sheet
+  // Xác định danh sách ca học (Lấy từ Dropdown sheet nếu có, hoặc dùng CONFIG.SHIFTS mặc định)
+  let shiftsToRender = CONFIG.SHIFTS;
   if (Array.isArray(state.dropdownSlots) && state.dropdownSlots.length > 0) {
-    const daysMap = {};
-    state.dropdownSlots.forEach(slot => {
-      const dayKey = slot.day || 'Khác';
-      if (!daysMap[dayKey]) daysMap[dayKey] = [];
-      daysMap[dayKey].push(slot);
+    const customShifts = [];
+    const seen = new Set();
+    state.dropdownSlots.forEach(s => {
+      const shiftName = s.shift || s.label;
+      if (shiftName && !seen.has(shiftName)) {
+        seen.add(shiftName);
+        customShifts.push({ key: shiftName, label: shiftName, time: s.time || '' });
+      }
     });
-
-    Object.keys(daysMap).forEach(dayLabel => {
-      const dayCol = document.createElement('div');
-      dayCol.className = 'day-column';
-
-      const header = document.createElement('div');
-      header.className = 'day-header';
-      header.textContent = dayLabel;
-      dayCol.appendChild(header);
-
-      daysMap[dayLabel].forEach((slot, sIdx) => {
-        const slotLabel = (slot.time && slot.time !== slot.shift) 
-          ? `${dayLabel} (${slot.shift}: ${slot.time})` 
-          : `${dayLabel} (${slot.shift})`;
-
-        const slotId = `dyn_${dayLabel}_${sIdx}`;
-        const count = slotCounts[slotLabel] || 0;
-        const isFull = count >= maxCapacity;
-        const isSelected = state.selectedSlots.some(s => s.label === slotLabel);
-
-        if (isFull && isSelected) {
-          const idx = state.selectedSlots.findIndex(s => s.label === slotLabel);
-          if (idx > -1) state.selectedSlots.splice(idx, 1);
-        }
-
-        const slotItem = document.createElement('div');
-        slotItem.className = `slot-item ${isFull ? 'full disabled' : ''} ${isSelected && !isFull ? 'selected' : ''}`;
-        slotItem.dataset.id = slotId;
-        slotItem.dataset.label = slotLabel;
-        slotItem.dataset.count = count;
-
-        slotItem.innerHTML = `
-          <span class="slot-name" style="font-weight: 700; font-size: 0.88rem; display: block; margin-bottom: 2px;">${slot.shift}</span>
-          ${(slot.time && slot.time !== slot.shift) ? `<span class="slot-time">${slot.time}</span>` : ''}
-          <span class="slot-capacity-badge">${isFull ? 'ĐÃ ĐẦY (9/9)' : `${count}/${maxCapacity} người`}</span>
-        `;
-
-        slotItem.addEventListener('click', () => {
-          if (isFull) {
-            if (typeof showToast === 'function') {
-              showToast(`Ca học "${slotLabel}" đã đủ tối đa 9/9 người đăng ký!`, 'error');
-            }
-            return;
-          }
-          toggleSlotSelection(slotId, slotLabel, slotItem);
-        });
-
-        dayCol.appendChild(slotItem);
-      });
-
-      gridContainer.appendChild(dayCol);
-    });
-  } else {
-    // Mặc định Render từ CONFIG (7 Ngày x 2 Khung giờ: Khung giờ 1 & Khung giờ 2)
-    CONFIG.DAYS.forEach(day => {
-      const dayCol = document.createElement('div');
-      dayCol.className = 'day-column';
-
-      const header = document.createElement('div');
-      header.className = 'day-header';
-      header.textContent = day.label;
-      dayCol.appendChild(header);
-
-      CONFIG.SHIFTS.forEach(shift => {
-        const slotId = `${day.key}_${shift.key}`;
-        const slotLabel = shift.time ? `${day.label} (${shift.label}: ${shift.time})` : `${day.label} (${shift.label})`;
-        const count = slotCounts[slotLabel] || 0;
-        const isFull = count >= maxCapacity;
-        const isSelected = state.selectedSlots.some(s => s.id === slotId || s.label === slotLabel);
-
-        if (isFull && isSelected) {
-          const idx = state.selectedSlots.findIndex(s => s.id === slotId || s.label === slotLabel);
-          if (idx > -1) state.selectedSlots.splice(idx, 1);
-        }
-
-        const slotItem = document.createElement('div');
-        slotItem.className = `slot-item ${isFull ? 'full disabled' : ''} ${isSelected && !isFull ? 'selected' : ''}`;
-        slotItem.dataset.id = slotId;
-        slotItem.dataset.label = slotLabel;
-        slotItem.dataset.count = count;
-
-        slotItem.innerHTML = `
-          <span class="slot-name" style="font-weight: 700; font-size: 0.88rem; display: block; margin-bottom: 2px;">${shift.label}</span>
-          ${shift.time ? `<span class="slot-time">${shift.time}</span>` : ''}
-          <span class="slot-capacity-badge">${isFull ? 'ĐÃ ĐẦY (9/9)' : `${count}/${maxCapacity} người`}</span>
-        `;
-
-        slotItem.addEventListener('click', () => {
-          if (isFull) {
-            if (typeof showToast === 'function') {
-              showToast(`Ca học "${slotLabel}" đã đủ tối đa 9/9 người đăng ký!`, 'error');
-            }
-            return;
-          }
-          toggleSlotSelection(slotId, slotLabel, slotItem);
-        });
-
-        dayCol.appendChild(slotItem);
-      });
-
-      gridContainer.appendChild(dayCol);
-    });
+    if (customShifts.length > 0) {
+      shiftsToRender = customShifts;
+    }
   }
+
+  // LUÔN LUÔN VÒNG LẶP 7 NGÀY TRONG TUẦN (Thứ 2 -> Chủ Nhật)
+  CONFIG.DAYS.forEach(day => {
+    const dayCol = document.createElement('div');
+    dayCol.className = 'day-column';
+
+    const header = document.createElement('div');
+    header.className = 'day-header';
+    header.textContent = day.label;
+    dayCol.appendChild(header);
+
+    shiftsToRender.forEach(shift => {
+      const slotId = `${day.key}_${shift.key}`;
+      const slotLabel = shift.time ? `${day.label} (${shift.label}: ${shift.time})` : `${day.label} (${shift.label})`;
+      const count = slotCounts[slotLabel] || 0;
+      const isFull = count >= maxCapacity;
+      const isSelected = state.selectedSlots.some(s => s.id === slotId || s.label === slotLabel);
+
+      if (isFull && isSelected) {
+        const idx = state.selectedSlots.findIndex(s => s.id === slotId || s.label === slotLabel);
+        if (idx > -1) state.selectedSlots.splice(idx, 1);
+      }
+
+      const slotItem = document.createElement('div');
+      slotItem.className = `slot-item ${isFull ? 'full disabled' : ''} ${isSelected && !isFull ? 'selected' : ''}`;
+      slotItem.dataset.id = slotId;
+      slotItem.dataset.label = slotLabel;
+      slotItem.dataset.count = count;
+
+      slotItem.innerHTML = `
+        <span class="slot-name" style="font-weight: 700; font-size: 0.88rem; display: block; margin-bottom: 2px;">${shift.label}</span>
+        ${shift.time ? `<span class="slot-time">${shift.time}</span>` : ''}
+        <span class="slot-capacity-badge">${isFull ? 'ĐÃ ĐẦY (9/9)' : `${count}/${maxCapacity} người`}</span>
+      `;
+
+      slotItem.addEventListener('click', () => {
+        if (isFull) {
+          if (typeof showToast === 'function') {
+            showToast(`Ca học "${slotLabel}" đã đủ tối đa 9/9 người đăng ký!`, 'error');
+          }
+          return;
+        }
+        toggleSlotSelection(slotId, slotLabel, slotItem);
+      });
+
+      dayCol.appendChild(slotItem);
+    });
+
+    gridContainer.appendChild(dayCol);
+  });
 
   renderSelectedTags();
   updateCounterBadge();
@@ -235,6 +229,10 @@ function setupFormEventListeners() {
     const fullName = document.getElementById('fullName').value.trim();
     const phone = document.getElementById('phone').value.trim();
     const email = document.getElementById('email').value.trim();
+    const studentTypeSelect = document.getElementById('studentType');
+    const sessionsSelect = document.getElementById('sessionsPerWeek');
+    const studentType = studentTypeSelect ? studentTypeSelect.value : 'Cấp tốc';
+    const sessionsPerWeek = sessionsSelect ? sessionsSelect.value : '4 buổi/tuần';
     const goal = document.getElementById('goal').value.trim();
     const notes = document.getElementById('notes').value.trim();
 
@@ -252,6 +250,8 @@ function setupFormEventListeners() {
       fullName,
       phone,
       email,
+      studentType,
+      sessionsPerWeek,
       selectedSlots: state.selectedSlots.map(s => s.label),
       goal,
       notes
@@ -285,6 +285,8 @@ function setupFormEventListeners() {
           "Họ và Tên": fullName,
           "Số Điện Thoại / Zalo": phone,
           "Email": email,
+          "Loại Học Viên": studentType,
+          "Số Buổi / Tuần": sessionsPerWeek,
           "Các Ca Học Đã Chọn": payload.selectedSlots.join(', '),
           "Mục Tiêu Học Tập": goal,
           "Ghi Chú": notes,
@@ -327,6 +329,7 @@ function showSuccessModal(regId, data) {
       <p><strong>Mã đăng ký:</strong> <span style="color: var(--primary);">${regId}</span></p>
       <p><strong>Họ và Tên:</strong> ${data.fullName}</p>
       <p><strong>Số điện thoại:</strong> ${data.phone}</p>
+      <p><strong>Chương trình:</strong> ${data.studentType || 'Cấp tốc'} (${data.sessionsPerWeek || ''})</p>
       <p><strong>Lịch học đã chọn:</strong></p>
       <ul style="padding-left: 20px; margin-top: 4px; color: var(--text-muted);">
         ${data.selectedSlots.map(s => `<li>${s}</li>`).join('')}

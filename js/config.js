@@ -13,6 +13,12 @@ const CONFIG = {
     SCHEDULE: '/api/schedule'
   },
 
+  // Course Types & Frequency Mapping
+  STUDENT_TYPES: {
+    'Cấp tốc': ['4 buổi/tuần', '5 buổi/tuần'],
+    'Dài hạn': ['2 buổi/tuần', '3 buổi/tuần']
+  },
+
   // Shifts / Time slots definition: Khung giờ 1 & Khung giờ 2
   DAYS: [
     { key: 'T2', label: 'Thứ 2' },

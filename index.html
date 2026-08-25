@@ -108,14 +108,44 @@
             </div>
           </div>
 
-          <!-- Section 2: Chọn nhiều ca học cùng lúc (Multi-select Grid) -->
+          <!-- Section 2: Loại hình & Số buổi học (Dynamic Dropdowns) -->
+          <div class="form-section">
+            <h3 class="section-title"><i class="fa-solid fa-layer-group"></i> 2. Loại hình Học & Tần suất</h3>
+            
+            <div class="form-grid col-2">
+              <!-- Dropdown 1: Loại học viên -->
+              <div class="form-group">
+                <label for="studentType">Loại hình Học viên <span class="required">*</span></label>
+                <div class="select-wrapper">
+                  <i class="fa-solid fa-fire input-icon text-warning"></i>
+                  <select id="studentType" name="studentType">
+                    <option value="Cấp tốc" selected>🔥 Học viên Cấp tốc (4 - 5 buổi/tuần)</option>
+                    <option value="Dài hạn">🌱 Học viên Dài hạn (2 - 3 buổi/tuần)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Dropdown 2: Số buổi/tuần -->
+              <div class="form-group">
+                <label for="sessionsPerWeek">Số Buổi đăng ký trên Tuần <span class="required">*</span></label>
+                <div class="select-wrapper">
+                  <i class="fa-solid fa-calendar-days input-icon text-primary"></i>
+                  <select id="sessionsPerWeek" name="sessionsPerWeek">
+                    <!-- Javascript populates options based on studentType -->
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 3: Chọn nhiều ca học cùng lúc (Multi-select Grid) -->
           <div class="form-section">
             <div class="section-header-flex">
-              <h3 class="section-title"><i class="fa-solid fa-cubes-stacked"></i> 2. Chọn Lịch & Ca Học (Đăng ký Khung giờ 1 & 2)</h3>
+              <h3 class="section-title"><i class="fa-solid fa-cubes-stacked"></i> 3. Chọn Lịch & Ca Học (Khung giờ 1 & 2)</h3>
               
               <div class="validation-badge" id="slotCounterBadge">
                 <span class="badge-icon"><i class="fa-solid fa-circle-info"></i></span>
-                <span id="counterText">Đã chọn: 0 ca học</span>
+                <span id="counterText">Đã chọn: 0 / 4 buổi</span>
               </div>
             </div>
 
@@ -139,9 +169,9 @@
             </div>
           </div>
 
-          <!-- Section 3: Mục tiêu & Ghi chú -->
+          <!-- Section 4: Mục tiêu & Ghi chú -->
           <div class="form-section">
-            <h3 class="section-title"><i class="fa-solid fa-bullseye"></i> 3. Mục tiêu & Ghi chú thêm</h3>
+            <h3 class="section-title"><i class="fa-solid fa-bullseye"></i> 4. Mục tiêu & Ghi chú thêm</h3>
             
             <div class="form-grid col-2">
               <div class="form-group">
