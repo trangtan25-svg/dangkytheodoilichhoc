@@ -55,7 +55,10 @@ function renderSlotsGrid() {
       dayCol.appendChild(header);
 
       daysMap[dayLabel].forEach((slot, sIdx) => {
-        const slotLabel = slot.label;
+        const slotLabel = (slot.time && slot.time !== slot.shift) 
+          ? `${dayLabel} (${slot.shift}: ${slot.time})` 
+          : `${dayLabel} (${slot.shift})`;
+
         const slotId = `dyn_${dayLabel}_${sIdx}`;
         const count = slotCounts[slotLabel] || 0;
         const isFull = count >= maxCapacity;
@@ -73,8 +76,8 @@ function renderSlotsGrid() {
         slotItem.dataset.count = count;
 
         slotItem.innerHTML = `
-          <span class="slot-time">${slot.time || slot.shift}</span>
-          <span class="slot-name">${slot.shift}</span>
+          <span class="slot-name" style="font-weight: 700; font-size: 0.88rem; display: block; margin-bottom: 2px;">${slot.shift}</span>
+          ${(slot.time && slot.time !== slot.shift) ? `<span class="slot-time">${slot.time}</span>` : ''}
           <span class="slot-capacity-badge">${isFull ? 'ĐÃ ĐẦY (9/9)' : `${count}/${maxCapacity} người`}</span>
         `;
 
@@ -94,7 +97,7 @@ function renderSlotsGrid() {
       gridContainer.appendChild(dayCol);
     });
   } else {
-    // Mặc định Render từ CONFIG
+    // Mặc định Render từ CONFIG (7 Ngày x 2 Khung giờ: Khung giờ 1 & Khung giờ 2)
     CONFIG.DAYS.forEach(day => {
       const dayCol = document.createElement('div');
       dayCol.className = 'day-column';
@@ -106,7 +109,7 @@ function renderSlotsGrid() {
 
       CONFIG.SHIFTS.forEach(shift => {
         const slotId = `${day.key}_${shift.key}`;
-        const slotLabel = `${day.label} (${shift.label}: ${shift.time})`;
+        const slotLabel = shift.time ? `${day.label} (${shift.label}: ${shift.time})` : `${day.label} (${shift.label})`;
         const count = slotCounts[slotLabel] || 0;
         const isFull = count >= maxCapacity;
         const isSelected = state.selectedSlots.some(s => s.id === slotId || s.label === slotLabel);
@@ -123,8 +126,8 @@ function renderSlotsGrid() {
         slotItem.dataset.count = count;
 
         slotItem.innerHTML = `
-          <span class="slot-time">${shift.time}</span>
-          <span class="slot-name">${shift.label}</span>
+          <span class="slot-name" style="font-weight: 700; font-size: 0.88rem; display: block; margin-bottom: 2px;">${shift.label}</span>
+          ${shift.time ? `<span class="slot-time">${shift.time}</span>` : ''}
           <span class="slot-capacity-badge">${isFull ? 'ĐÃ ĐẦY (9/9)' : `${count}/${maxCapacity} người`}</span>
         `;
 
