@@ -88,23 +88,6 @@ function renderSlotsGrid() {
   const slotCounts = getSlotRegistrationCounts();
   const maxCapacity = CONFIG.MAX_SLOT_CAPACITY || 9;
 
-  // Xác định danh sách ca học (Lấy từ Dropdown sheet nếu có, hoặc dùng CONFIG.SHIFTS mặc định)
-  let shiftsToRender = CONFIG.SHIFTS;
-  if (Array.isArray(state.dropdownSlots) && state.dropdownSlots.length > 0) {
-    const customShifts = [];
-    const seen = new Set();
-    state.dropdownSlots.forEach(s => {
-      const shiftName = s.shift || s.label;
-      if (shiftName && !seen.has(shiftName)) {
-        seen.add(shiftName);
-        customShifts.push({ key: shiftName, label: shiftName, time: s.time || '' });
-      }
-    });
-    if (customShifts.length > 0) {
-      shiftsToRender = customShifts;
-    }
-  }
-
   // LUÔN LUÔN VÒNG LẶP 7 NGÀY TRONG TUẦN (Thứ 2 -> Chủ Nhật)
   CONFIG.DAYS.forEach(day => {
     const dayCol = document.createElement('div');
@@ -114,6 +97,22 @@ function renderSlotsGrid() {
     header.className = 'day-header';
     header.textContent = day.label;
     dayCol.appendChild(header);
+
+    // Lấy đúng danh sách các ca học được cấu hình riêng cho từng Thứ từ Google Sheets
+    const daySpecificSlots = (state.dropdownSlots || []).filter(ds => ds.day === day.label && ds.shift);
+    let shiftsToRender = [];
+
+    if (daySpecificSlots.length > 0) {
+      const seen = new Set();
+      daySpecificSlots.forEach(ds => {
+        if (!seen.has(ds.shift)) {
+          seen.add(ds.shift);
+          shiftsToRender.push({ key: ds.shift, label: ds.shift, time: ds.time || '' });
+        }
+      });
+    } else {
+      shiftsToRender = CONFIG.SHIFTS;
+    }
 
     shiftsToRender.forEach(shift => {
       const slotId = `${day.key}_${shift.key}`;

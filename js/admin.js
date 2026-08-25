@@ -14,22 +14,6 @@ function renderAdminSlotsGrid() {
   container.innerHTML = '';
   const daysList = CONFIG.DAYS || [];
 
-  // Tổng hợp động danh sách tất cả Khung Giờ (bao gồm cả các khung giờ mới được thêm)
-  const shiftsList = [];
-  const seenShifts = new Set();
-
-  (CONFIG.SHIFTS || []).forEach(s => {
-    seenShifts.add(s.label);
-    shiftsList.push(s);
-  });
-
-  (state.dropdownSlots || []).forEach(ds => {
-    if (ds.shift && !seenShifts.has(ds.shift)) {
-      seenShifts.add(ds.shift);
-      shiftsList.push({ key: ds.shift, label: ds.shift, time: ds.time || '' });
-    }
-  });
-
   daysList.forEach(day => {
     const dayCol = document.createElement('div');
     dayCol.className = 'day-column';
@@ -39,7 +23,23 @@ function renderAdminSlotsGrid() {
     header.textContent = day.label;
     dayCol.appendChild(header);
 
-    shiftsList.forEach(shift => {
+    // Lấy đúng danh sách ca học được cấu hình riêng cho từng Thứ từ Google Sheets
+    const daySpecificSlots = (state.dropdownSlots || []).filter(ds => ds.day === day.label && ds.shift);
+    let shiftsToRender = [];
+
+    if (daySpecificSlots.length > 0) {
+      const seen = new Set();
+      daySpecificSlots.forEach(ds => {
+        if (!seen.has(ds.shift)) {
+          seen.add(ds.shift);
+          shiftsToRender.push({ key: ds.shift, label: ds.shift, time: ds.time || '' });
+        }
+      });
+    } else {
+      shiftsToRender = CONFIG.SHIFTS || [];
+    }
+
+    shiftsToRender.forEach(shift => {
       const matchedDrop = (state.dropdownSlots || []).find(ds => ds.day === day.label && (ds.shift === shift.label || (ds.label || '').toString().includes(shift.label)));
       const isLocked = matchedDrop && matchedDrop.status && (matchedDrop.status.toString().includes('khóa') || matchedDrop.status.toString().includes('tắt'));
 

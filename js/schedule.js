@@ -392,10 +392,6 @@ function renderScheduleList() {
       { key: 'CN', label: 'Chủ Nhật' }
     ];
 
-    const shiftsList = (Array.isArray(state.dropdownSlots) && state.dropdownSlots.length > 0)
-      ? Array.from(new Set(state.dropdownSlots.map(s => s.shift || s.label)))
-      : ['Khung giờ 1', 'Khung giờ 2'];
-
     daysList.forEach(day => {
       const dayCard = document.createElement('div');
       dayCard.className = 'card';
@@ -407,6 +403,15 @@ function renderScheduleList() {
           <h3 style="font-size: 0.92rem; font-weight: 800; color: var(--primary); margin: 0; white-space: nowrap;"><i class="fa-solid fa-calendar-day"></i> ${day.label}</h3>
         </div>
       `;
+
+      // Lấy danh sách ca học cấu hình riêng cho từng Thứ từ state.dropdownSlots
+      const daySpecificSlots = (state.dropdownSlots || []).filter(ds => ds.day === day.label && (ds.shift || ds.label));
+      let shiftsList = [];
+      if (daySpecificSlots.length > 0) {
+        shiftsList = Array.from(new Set(daySpecificSlots.map(s => s.shift || s.label)));
+      } else {
+        shiftsList = ['Khung giờ 1', 'Khung giờ 2'];
+      }
 
       shiftsList.forEach(shiftName => {
         const matchedStudents = items.filter(reg => {
