@@ -8,7 +8,7 @@
 const SPREADSHEET_ID = '1bv1twT1xlmRYWbEI3uzlEV-te5-pbtm5qIw7cqJa6HA';
 const SHEET_REGISTRATIONS = 'DangKyLichHoc';
 const SHEET_DROPDOWN = 'quanlykhunggio';
-const MAX_SLOT_CAPACITY = 9;
+const MAX_SLOT_CAPACITY = 14;
 
 // 0. Helper Xóa Dấu Tiếng Việt chuẩn xác
 function removeVietnameseTones(str) {
@@ -595,7 +595,7 @@ function doPost(e) {
         return ContentService
           .createTextOutput(JSON.stringify({ 
             status: 'error', 
-            message: 'Ca học "' + slotName + '" đã đủ tối đa 9 người đăng ký. Vui lòng chọn ca học khác!' 
+            message: 'Ca học "' + slotName + '" đã đủ tối đa ' + MAX_SLOT_CAPACITY + ' người đăng ký. Vui lòng chọn ca học khác!' 
           }))
           .setMimeType(ContentService.MimeType.JSON);
       }

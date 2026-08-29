@@ -434,12 +434,13 @@ function renderScheduleList() {
         });
 
         const studentCount = matchedStudents.length;
+        const maxCap = CONFIG.MAX_SLOT_CAPACITY || 14;
 
         dayHtml += `
-          <div style="background: var(--bg-input); padding: 8px 6px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid ${studentCount >= 9 ? 'var(--danger)' : 'var(--primary)'};">
+          <div style="background: var(--bg-input); padding: 8px 6px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid ${studentCount >= maxCap ? 'var(--danger)' : 'var(--primary)'};">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 2px;">
               <span style="font-weight: 700; font-size: 0.78rem; color: var(--text-main); white-space: nowrap;"><i class="fa-solid fa-clock text-warning"></i> ${shiftName}</span>
-              <span class="slot-capacity-badge" style="font-size: 0.68rem; padding: 1px 4px; white-space: nowrap;">${studentCount}/9</span>
+              <span class="slot-capacity-badge" style="font-size: 0.68rem; padding: 1px 4px; white-space: nowrap;">${studentCount}/${maxCap}</span>
             </div>
         `;
 

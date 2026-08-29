@@ -86,7 +86,7 @@ function renderSlotsGrid() {
 
   gridContainer.innerHTML = '';
   const slotCounts = getSlotRegistrationCounts();
-  const maxCapacity = CONFIG.MAX_SLOT_CAPACITY || 9;
+  const maxCapacity = CONFIG.MAX_SLOT_CAPACITY || 14;
 
   // LUÔN LUÔN VÒNG LẶP 7 NGÀY TRONG TUẦN (Thứ 2 -> Chủ Nhật)
   CONFIG.DAYS.forEach(day => {
@@ -140,7 +140,7 @@ function renderSlotsGrid() {
 
       let badgeText = `${count}/${maxCapacity} người`;
       if (isAdminLocked) badgeText = 'ĐÃ KHÓA';
-      else if (isFull) badgeText = 'ĐÃ ĐẦY (9/9)';
+      else if (isFull) badgeText = `ĐÃ ĐẦY (${maxCapacity}/${maxCapacity})`;
 
       slotItem.innerHTML = `
         <span class="slot-name" style="font-weight: 700; font-size: 0.88rem; display: block; margin-bottom: 2px;">${shift.label}</span>
@@ -170,9 +170,10 @@ function renderSlotsGrid() {
 
 // 3. Toggle Multi-select slot selection (Khóa không cho chọn vượt quá số buổi đăng ký)
 function toggleSlotSelection(slotId, slotLabel, element) {
+  const maxCapacity = CONFIG.MAX_SLOT_CAPACITY || 14;
   if (element.classList.contains('full') || element.classList.contains('disabled')) {
     if (typeof showToast === 'function') {
-      showToast(`Ca học này đã đủ 9/9 người đăng ký hoặc đang bị khóa, không thể chọn!`, 'error');
+      showToast(`Ca học này đã đủ ${maxCapacity}/${maxCapacity} người đăng ký hoặc đang bị khóa, không thể chọn!`, 'error');
     }
     return;
   }
